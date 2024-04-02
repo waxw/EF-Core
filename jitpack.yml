@@ -1,0 +1,4 @@
+# jitpack.yml
+
+dependencies:
+    - alias: ef-core
