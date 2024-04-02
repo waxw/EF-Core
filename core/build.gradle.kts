@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.androidLibrary)
   alias(libs.plugins.jetbrainsKotlinAndroid)
+  `maven-publish`
 }
 
 android {
@@ -40,4 +41,14 @@ dependencies {
   testImplementation(libs.junit)
   androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.espresso.core)
+}
+
+publishing {
+  publications {
+    create("maven_publish", MavenPublication::class.java) {
+      groupId = "com.miyako"
+      artifactId = "core"
+      version = "0.0.1"
+    }
+  }
 }
