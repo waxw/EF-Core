@@ -25,12 +25,18 @@ android {
     abortOnError = false
   }
   compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
   }
   kotlinOptions {
-    jvmTarget = "17"
+    jvmTarget = "1.8"
   }
+
+  // publishing {
+  //   multipleVariants {
+  //     includeBuildTypeValues("debug", "release")
+  //   }
+  // }
 }
 
 dependencies {
@@ -43,12 +49,21 @@ dependencies {
   androidTestImplementation(libs.androidx.espresso.core)
 }
 
-publishing {
-  publications {
-    create("maven_publish", MavenPublication::class.java) {
-      groupId = "com.miyako"
-      artifactId = "core"
-      version = "0.0.1"
+afterEvaluate {
+  publishing {
+    publications {
+      register<MavenPublication>("release") {
+        from(components["release"])
+        groupId = "com.miyako"
+        artifactId = "core"
+        version = "0.0.1"
+      }
+      register<MavenPublication>("debug") {
+        from(components["debug"])
+        groupId = "com.miyako"
+        artifactId = "core-debug"
+        version = "0.0.1"
+      }
     }
   }
 }
