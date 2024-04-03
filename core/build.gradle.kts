@@ -46,21 +46,18 @@ dependencies {
 afterEvaluate {
   publishing {
     publications {
-      register<MavenPublication>("release") {
-        from(components["release"])
-        groupId = "com.miyako"
-        artifactId = "core"
-        version = "0.0.1"
-      }
-      // register<MavenPublication>("debug") {
-      //   from(components["debug"])
+      // register<MavenPublication>("release") {
+      //   from(components["release"])
       //   groupId = "com.miyako"
       //   artifactId = "core"
       //   version = "0.0.1"
       // }
-      // create("maven_publish", MavenPublication::class.java) {
-      //
-      // }
+      register<MavenPublication>("debug") {
+        from(components["debug"])
+        groupId = "com.miyako"
+        artifactId = "core"
+        version = "0.0.1"
+      }
     }
   }
 }
