@@ -31,6 +31,12 @@ android {
   kotlinOptions {
     jvmTarget = "1.8"
   }
+
+  // publishing {
+  //   multipleVariants {
+  //     includeBuildTypeValues("debug", "release")
+  //   }
+  // }
 }
 
 dependencies {
@@ -46,16 +52,16 @@ dependencies {
 afterEvaluate {
   publishing {
     publications {
-      // register<MavenPublication>("release") {
-      //   from(components["release"])
-      //   groupId = "com.miyako"
-      //   artifactId = "core"
-      //   version = "0.0.1"
-      // }
+      register<MavenPublication>("release") {
+        from(components["release"])
+        groupId = "com.miyako"
+        artifactId = "core"
+        version = "0.0.1"
+      }
       register<MavenPublication>("debug") {
         from(components["debug"])
         groupId = "com.miyako"
-        artifactId = "core"
+        artifactId = "core-debug"
         version = "0.0.1"
       }
     }
