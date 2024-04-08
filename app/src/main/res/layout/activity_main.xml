@@ -5,6 +5,7 @@
   android:id="@+id/main"
   android:layout_width="match_parent"
   android:layout_height="match_parent"
+  android:orientation="vertical"
   tools:context=".MainActivity">
 
   <TextView
@@ -12,5 +13,12 @@
     android:layout_width="match_parent"
     android:layout_height="44dp"
     android:gravity="center" />
+
+  <TextView
+    android:id="@+id/tvSpannableString"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center" />
+
 
 </LinearLayout>
