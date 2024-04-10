@@ -24,7 +24,14 @@
   <androidx.recyclerview.widget.RecyclerView
     android:id="@+id/rvList"
     android:layout_width="200dp"
-    android:layout_height="match_parent"
+    android:layout_height="400dp"
+    android:gravity="center_horizontal"
+    android:background="#5500FFFF" />
+
+  <androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/rvListHorizontal"
+    android:layout_width="match_parent"
+    android:layout_height="100dp"
     android:gravity="center_horizontal"
     android:background="#5500FFFF" />
 

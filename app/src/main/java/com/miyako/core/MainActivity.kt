@@ -51,8 +51,13 @@ class MainActivity : AppCompatActivity() {
       adapter = StringAdapter(dateList)
       // ItemDecoration 可叠加
       // addItemDecoration(SpaceItemDecoration(Rect(16.dp, 2.dp, 16.dp, 2.dp)))
-      addItemDecoration(SpaceItemDecoration(Rect(0, 4.dp, 0.dp, 4.dp)))
+      addItemDecoration(SpaceItemDecoration(Rect(0, 4.dp, 0.dp, 4.dp), 10.dp))
       addItemDecoration(SpaceItemDecoration(horizontal = 10.dp))
+    }
+    binding.rvListHorizontal.run {
+      layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
+      adapter = StringAdapter(dateList)
+      addItemDecoration(SpaceItemDecoration(horizontal = 20.dp, vertical = 10.dp, isHorizontal = true))
     }
   }
 }
