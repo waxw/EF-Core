@@ -6,6 +6,16 @@ inline fun <T> T?.init(block: () -> T): T {
   return this ?: block()
 }
 
+inline fun Boolean?.ifTrue(block: () -> Unit): Boolean? {
+  if (this == true) block()
+  return this
+}
+
+inline fun Boolean?.ifFalse(block: () -> Unit): Boolean? {
+  if (this == false) block()
+  return this
+}
+
 fun <T> unsafeLazy(initializer: () -> T): Lazy<T> = lazy(LazyThreadSafetyMode.NONE, initializer)
 
 val Any.hex: String
