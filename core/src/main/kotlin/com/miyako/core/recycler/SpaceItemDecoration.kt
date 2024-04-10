@@ -14,29 +14,38 @@ import androidx.recyclerview.widget.RecyclerView
 class SpaceItemDecoration constructor(
   private val spaceRect: Rect,
   private val start: Int = 0,
-  private val end: Int = 0
+  private val end: Int = 0,
+  private val isHorizontal: Boolean = false
 ) : RecyclerView.ItemDecoration() {
 
-  constructor(space: Int, start: Int = 0, end: Int = 0) : this(
+  constructor(space: Int, start: Int = 0, end: Int = 0, isHorizontal: Boolean = false) : this(
     Rect(space, space, space, space),
     start,
-    end
+    end,
+    isHorizontal
   )
 
-  constructor(horizontal: Int = 0, vertical: Int = 0, start: Int = 0, end: Int = 0) : this(
+  constructor(
+    horizontal: Int = 0,
+    vertical: Int = 0,
+    start: Int = 0,
+    end: Int = 0,
+    isHorizontal: Boolean = false
+  ) : this(
     Rect(horizontal, vertical, horizontal, vertical),
     start,
-    end
+    end,
+    isHorizontal
   )
 
   override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
     super.getItemOffsets(outRect, view, parent, state)
     parent.adapter?.let {
       val idx = parent.getChildAdapterPosition(view)
-      outRect.top = if (idx == 0) start else spaceRect.top
-      outRect.bottom = if (idx == it.itemCount - 1) end else spaceRect.bottom
-      outRect.left = spaceRect.left
-      outRect.right = spaceRect.right
+      outRect.top = if (isHorizontal.not() && idx == 0) start else spaceRect.top
+      outRect.bottom = if (isHorizontal.not().not() && idx == it.itemCount - 1) end else spaceRect.bottom
+      outRect.left = if (isHorizontal && idx == 0) start else spaceRect.left
+      outRect.right = if (isHorizontal && idx == it.itemCount - 1) end else spaceRect.right
     }
   }
 }
