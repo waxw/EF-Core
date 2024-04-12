@@ -24,15 +24,23 @@
   <androidx.recyclerview.widget.RecyclerView
     android:id="@+id/rvList"
     android:layout_width="200dp"
-    android:layout_height="400dp"
-    android:gravity="center_horizontal"
-    android:background="#5500FFFF" />
+    android:layout_height="300dp"
+    android:background="#5500FFFF"
+    android:gravity="center_horizontal" />
 
   <androidx.recyclerview.widget.RecyclerView
     android:id="@+id/rvListHorizontal"
     android:layout_width="match_parent"
     android:layout_height="100dp"
-    android:gravity="center_horizontal"
-    android:background="#5500FFFF" />
+    android:background="#5500FFFF"
+    android:gravity="center_horizontal" />
+
+  <androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/rvListGrid"
+    android:layout_width="match_parent"
+    android:layout_height="200dp"
+    android:layout_marginTop="20dp"
+    android:background="#5500FFFF"
+    android:gravity="center_horizontal" />
 
 </LinearLayout>

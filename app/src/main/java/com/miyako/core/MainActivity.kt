@@ -8,8 +8,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.miyako.core.databinding.ActivityMainBinding
+import com.miyako.core.recycler.AdaptiveSpaceItemDecoration
 import com.miyako.core.recycler.SpaceItemDecoration
 
 class MainActivity : AppCompatActivity() {
@@ -51,13 +53,19 @@ class MainActivity : AppCompatActivity() {
       adapter = StringAdapter(dateList)
       // ItemDecoration 可叠加
       // addItemDecoration(SpaceItemDecoration(Rect(16.dp, 2.dp, 16.dp, 2.dp)))
-      addItemDecoration(SpaceItemDecoration(Rect(0, 4.dp, 0.dp, 4.dp), 10.dp))
-      addItemDecoration(SpaceItemDecoration(horizontal = 10.dp))
+      // addItemDecoration(SpaceItemDecoration(Rect(0, 4.dp, 0.dp, 4.dp), 10.dp))
+      addItemDecoration(AdaptiveSpaceItemDecoration(10.dp))
     }
     binding.rvListHorizontal.run {
       layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
       adapter = StringAdapter(dateList)
-      addItemDecoration(SpaceItemDecoration(horizontal = 20.dp, vertical = 10.dp))
+      // addItemDecoration(SpaceItemDecoration(horizontal = 20.dp, vertical = 10.dp))
+      addItemDecoration(AdaptiveSpaceItemDecoration(10.dp))
+    }
+    binding.rvListGrid.run {
+      layoutManager = GridLayoutManager(context, 3)
+      adapter = GridStringAdapter(dateList)
+      addItemDecoration(AdaptiveSpaceItemDecoration(10.dp, true))
     }
   }
 }
