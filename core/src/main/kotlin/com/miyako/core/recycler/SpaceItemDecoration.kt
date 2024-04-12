@@ -19,7 +19,7 @@ class SpaceItemDecoration(
 ) : RecyclerView.ItemDecoration() {
 
   constructor(space: Int, start: Int = 0, end: Int = 0) : this(
-    Rect(space, space, space, space),
+    Rect(space / 2, space / 2, space / 2, space / 2),
     start,
     end,
   )
@@ -30,7 +30,7 @@ class SpaceItemDecoration(
     start: Int = 0,
     end: Int = 0,
   ) : this(
-    Rect(horizontal, vertical, horizontal, vertical),
+    Rect(horizontal / 2, vertical / 2, horizontal / 2, vertical / 2),
     start,
     end,
   )
