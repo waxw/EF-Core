@@ -57,7 +57,7 @@ class MainActivity : AppCompatActivity() {
     binding.rvListHorizontal.run {
       layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
       adapter = StringAdapter(dateList)
-      addItemDecoration(SpaceItemDecoration(horizontal = 20.dp, vertical = 10.dp, isHorizontal = true))
+      addItemDecoration(SpaceItemDecoration(horizontal = 20.dp, vertical = 10.dp))
     }
   }
 }
