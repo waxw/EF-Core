@@ -2,6 +2,7 @@ package com.miyako.core.recycler
 
 import android.graphics.Rect
 import android.view.View
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
 /**
@@ -11,18 +12,16 @@ import androidx.recyclerview.widget.RecyclerView
  * 设置 horizontal 为 40，则最终 left 为 40，right 为 400-320-40 = 40
  * 设置 horizontal 为 50，则最终 left 为 50，right 为 400-320-50 = 30
  */
-class SpaceItemDecoration constructor(
+class SpaceItemDecoration(
   private val spaceRect: Rect,
   private val start: Int = 0,
   private val end: Int = 0,
-  private val isHorizontal: Boolean = false
 ) : RecyclerView.ItemDecoration() {
 
-  constructor(space: Int, start: Int = 0, end: Int = 0, isHorizontal: Boolean = false) : this(
+  constructor(space: Int, start: Int = 0, end: Int = 0) : this(
     Rect(space, space, space, space),
     start,
     end,
-    isHorizontal
   )
 
   constructor(
@@ -30,22 +29,23 @@ class SpaceItemDecoration constructor(
     vertical: Int = 0,
     start: Int = 0,
     end: Int = 0,
-    isHorizontal: Boolean = false
   ) : this(
     Rect(horizontal, vertical, horizontal, vertical),
     start,
     end,
-    isHorizontal
   )
 
   override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
     super.getItemOffsets(outRect, view, parent, state)
     parent.adapter?.let {
-      val idx = parent.getChildAdapterPosition(view)
-      outRect.top = if (isHorizontal.not() && idx == 0) start else spaceRect.top
-      outRect.bottom = if (isHorizontal.not().not() && idx == it.itemCount - 1) end else spaceRect.bottom
-      outRect.left = if (isHorizontal && idx == 0) start else spaceRect.left
-      outRect.right = if (isHorizontal && idx == it.itemCount - 1) end else spaceRect.right
+      (parent.layoutManager as? LinearLayoutManager)?.let { layoutManger ->
+        val isHorizontal = layoutManger.canScrollHorizontally()
+        val idx = parent.getChildAdapterPosition(view)
+        outRect.top = if (isHorizontal.not() && idx == 0) start else spaceRect.top
+        outRect.bottom = if (isHorizontal.not().not() && idx == it.itemCount - 1) end else spaceRect.bottom
+        outRect.left = if (isHorizontal && idx == 0) start else spaceRect.left
+        outRect.right = if (isHorizontal && idx == it.itemCount - 1) end else spaceRect.right
+      }
     }
   }
 }
