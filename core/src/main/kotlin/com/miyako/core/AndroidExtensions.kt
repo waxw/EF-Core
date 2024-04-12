@@ -13,7 +13,16 @@ import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
 
 fun View.roundCorners(radius: Int) {
-  roundCorners(radius, radius)
+  this.outlineProvider =
+    object : ViewOutlineProvider() {
+      override fun getOutline(
+        view: View,
+        outline: Outline
+      ) {
+        outline.setRoundRect(0, 0, view.width, view.height, radius.toFloat())
+      }
+    }
+  this.clipToOutline = true
 }
 
 fun View.roundCorners(radiusX: Int, radiusY: Int) {
