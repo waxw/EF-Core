@@ -1,0 +1,44 @@
+#!/bin/sh
+#set -e
+echo "Running pre-commit check..."
+GIT_ROOT="$(pwd)"
+echo $GIT_ROOT
+ROOT="$GIT_ROOT"
+cd $ROOT
+# 进入到项目根目录
+GRADLEW=./gradlew
+
+# 获取暂存区文件
+CHANGED_FILES="$(git --no-pager diff --name-status --no-color --cached | awk '$1 != "D" && $NF ~ /\.kts?$/ { print $NF }')"
+TMP_FILE=$ROOT/staged-kotlin.txt
+echo $CHANGED_FILES > $TMP_FILE
+if [ -z "$CHANGED_FILES" ]; then
+    echo "No Kotlin staged files."
+    exit 0
+fi;
+echo "Running formatKotlin over these files:"
+echo "$CHANGED_FILES"
+# 获取 diff 文件
+diff=$ROOT/unstaged-kotlin-format.diff
+echo "diff $diff"
+git diff --color=never > $diff
+if [ -s $diff ]; then
+  echo "apply $diff"
+  git apply -R $diff
+fi
+# 对暂存区文件 format
+$GRADLEW ktFormat -Pfile=$TMP_FILE
+EXIT_CODE=$?
+echo "Complete ktFormat run"
+echo "$CHANGED_FILES" | while read -r file; do
+  echo "change $file"
+  if [ -f $file ]; then
+      echo "format each $GIT_ROOT/$file"
+      git add $file
+  fi
+done
+
+rm $TMP_FILE
+rm $diff
+echo "$EXIT_CODE"
+exit $EXIT_CODE
