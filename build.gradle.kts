@@ -4,3 +4,13 @@ plugins {
   alias(libs.plugins.jetbrainsKotlinAndroid) apply false
   alias(libs.plugins.androidLibrary) apply false
 }
+
+buildscript {
+  dependencies {
+    classpath(libs.kotlinter)
+  }
+}
+
+allprojects {
+  apply(plugin = "org.jmailen.kotlinter")
+}
