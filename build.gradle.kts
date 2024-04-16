@@ -14,3 +14,18 @@ buildscript {
 allprojects {
   apply(plugin = "org.jmailen.kotlinter")
 }
+
+tasks.create("setGitHooksPath") {
+  description = "Set custom Git hooks path"
+  group = "git"
+  // 要设置的自定义Git hooks路径
+  val hooksPath = "$rootDir/config/githooks"
+
+
+  doLast {
+    // 修改Git配置，设置自定义Git hooks路径
+    exec {
+      commandLine = listOf("git", "config", "--local", "core.hooksPath", hooksPath)
+    }
+  }
+}
