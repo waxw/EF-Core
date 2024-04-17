@@ -13,7 +13,16 @@ import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
 
 fun View.roundCorners(radius: Int) {
-  roundCorners(radius, radius)
+  this.outlineProvider =
+    object : ViewOutlineProvider() {
+      override fun getOutline(
+        view: View,
+        outline: Outline
+      ) {
+        outline.setRoundRect(0, 0, view.width, view.height, radius.toFloat())
+      }
+    }
+  this.clipToOutline = true
 }
 
 fun View.roundCorners(radiusX: Int, radiusY: Int) {
@@ -26,7 +35,7 @@ fun View.roundCorners(radiusX: Int, radiusY: Int) {
   }
 }
 
-fun View.roundCorner(radiusArr: FloatArray) {
+fun View.roundCorners(radiusArr: FloatArray) {
   if (radiusArr.size < 8) return
   clipPath { view, path ->
     path.addRoundRect(
@@ -37,7 +46,10 @@ fun View.roundCorner(radiusArr: FloatArray) {
   }
 }
 
-private inline fun View.clipPath(crossinline action: (View, Path) -> Unit) {
+/**
+ * 只有 API 33 才生效
+ */
+fun View.clipPath(action: (View, Path) -> Unit) {
   this.outlineProvider = object : ViewOutlineProvider() {
     override fun getOutline(view: View, outline: Outline) {
       val path = Path()
