@@ -1,6 +1,7 @@
 [versions]
 agp = "8.3.0"
-kotlin = "1.9.0"
+kotlin = "1.9.20"
+kotlinter = "4.2.0"
 coreKtx = "1.12.0"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -9,6 +10,7 @@ appcompat = "1.6.1"
 material = "1.11.0"
 
 [libraries]
+kotlinter = { group = "org.jmailen.gradle", name = "kotlinter-gradle", version.ref = "kotlinter"}
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
