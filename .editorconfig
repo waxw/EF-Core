@@ -19,6 +19,8 @@ ktlint_code_style = ktlint_official
 ij_kotlin_allow_trailing_comma = false
 # 方法多参数列表末尾逗号
 ij_kotlin_allow_trailing_comma_on_call_site = false
+# 方法签名和方法表达式允许一行显示
+ktlint_function_signature_body_expression_wrapping = multiline
 
 [*.xml]
 indent_size = 2
