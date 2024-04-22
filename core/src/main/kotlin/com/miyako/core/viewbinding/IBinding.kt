@@ -1,6 +1,7 @@
 package com.miyako.core.viewbinding
 
 import android.view.LayoutInflater
+import android.view.ViewGroup
 import androidx.annotation.MainThread
 import androidx.viewbinding.ViewBinding
 import java.lang.reflect.Method
@@ -38,4 +39,25 @@ sealed interface IBindingFragment<VB : ViewBinding> : IBinding<VB> {
   @MainThread
   fun initOnce() {
   }
+}
+
+inline fun <reified VB : ViewBinding> inflate(
+  parent: ViewGroup,
+  attachToParent: Boolean = false,
+  inflater: LayoutInflater = LayoutInflater.from(parent.context)
+): VB {
+  return inflate(VB::class.java, parent, attachToParent, inflater) as VB
+}
+
+fun inflate(
+  javaClass: Class<*>,
+  parent: ViewGroup,
+  attachToParent: Boolean,
+  inflater: LayoutInflater
+): ViewBinding {
+  return javaClass.takeIf { it.simpleName.endsWith("Binding") }
+    ?.getMethod("inflate", LayoutInflater::class.java, ViewGroup::class.java, Boolean::class.java)
+    ?.also { it.isAccessible = true }
+    ?.invoke(null, inflater, parent, attachToParent) as? ViewBinding
+    ?: error("It isn't binding class.")
 }
