@@ -1,5 +1,7 @@
 package com.miyako.core
 
+import android.content.Context
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.Outline
@@ -11,6 +13,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
+import java.util.Locale
 
 fun View.roundCorners(radius: Int) {
   this.outlineProvider =
@@ -129,3 +132,31 @@ val Number.sp: Int
       }
     }
   }
+
+fun Context.changeLanguage(code: String?): Context? {
+  return try {
+    val locale = getLocaleByCode(code)
+    "change local: $locale".debugLog()
+    if (locale == null) return null
+    val configuration = Configuration(resources.configuration)
+    configuration.setLocale(locale)
+    // api 17 废弃，仍可以生效
+    resources.updateConfiguration(configuration, resources.displayMetrics)
+    createConfigurationContext(configuration)
+  } catch (e: Exception) {
+    e.printStackTrace()
+    null
+  }
+}
+
+private fun getLocaleByCode(code: String?): Locale? {
+  // 跟随系统。
+  if (code.isNullOrEmpty()) return Locale.getDefault()
+  val list = code.split(",")
+  if (list.size < 2) return null
+  return if (list[1].trim().isEmpty()) {
+    Locale(list[0])
+  } else {
+    Locale(list[0], list[1])
+  }
+}
