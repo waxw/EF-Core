@@ -1,5 +1,6 @@
 package com.miyako.core
 
+import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableString
@@ -10,7 +11,18 @@ import androidx.core.view.WindowInsetsCompat
 import com.miyako.core.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
+
+  private val sp by unsafeLazy { getSharedPreferences("language", MODE_PRIVATE) }
+
+  override fun attachBaseContext(newBase: Context?) {
+    val language = newBase?.getSharedPreferences("language", MODE_PRIVATE)?.getString("set_language", "")
+    "language: $language".debugLog()
+    val base = newBase?.changeLanguage(language) ?: newBase
+    super.attachBaseContext(base)
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
+
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     val binding = ActivityMainBinding.inflate(layoutInflater)
@@ -38,5 +50,21 @@ class MainActivity : AppCompatActivity() {
       .clickable("xiao", Color.GREEN) {
 
       }
+
+    binding.btnChangeChinese.setOnClickListener {
+      setLanguage("zh,CN")
+    }
+
+    binding.btnChangeDefault.setOnClickListener {
+      setLanguage("en,US")
+    }
+  }
+
+  private fun setLanguage(code: String) {
+    if (this.changeLanguage(code) != null) {
+      "success: $code".debugLog()
+    }
+    sp.edit().putString("set_language", code).commit()
+    recreate()
   }
 }
