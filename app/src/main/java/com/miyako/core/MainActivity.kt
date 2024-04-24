@@ -4,11 +4,14 @@ import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableString
+import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import com.miyako.core.databinding.ActivityMainBinding
+import kotlinx.coroutines.delay
 
 class MainActivity : AppCompatActivity() {
 
@@ -52,13 +55,35 @@ class MainActivity : AppCompatActivity() {
       }
 
     binding.btnChangeChinese.setOnClickListener {
-      setLanguage("zh,CN")
+      val s = measureExecuteNano("ns") {
+        setLanguage("zh,CN")
+        // return@setOnClickListener
+        return@measureExecuteNano
+      }
     }
 
     binding.btnChangeDefault.setOnClickListener {
-      setLanguage("en,US")
+      lifecycleScope.launchDefault {
+        cnt++
+        val s = measureSuspendMillis("click") {
+          // setLanguage("en,US")
+          // return@setOnClickListener 1
+          Log.d("miyako", "measureExecuteMillis")
+          if (cnt % 2 == 0) {
+            return@measureSuspendMillis run {
+              delay(3000)
+              -1
+            }
+          }
+          delay(1000)
+          1
+        }
+        Log.d("miyako", "res: $s")
+      }
     }
   }
+
+  private var cnt = 0
 
   private fun setLanguage(code: String) {
     if (this.changeLanguage(code) != null) {
