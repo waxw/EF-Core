@@ -17,8 +17,20 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  signingConfigs.create("core") {
+    storeFile = file("../ef_core.keystore")
+    storePassword = "ef_core"
+    keyAlias = "ef_core"
+    keyPassword = "ef_core"
+  }
+
+
   buildTypes {
+    debug {
+      signingConfig = signingConfigs.getByName("core")
+    }
     release {
+      signingConfig = signingConfigs.getByName("core")
       isMinifyEnabled = false
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
