@@ -25,3 +25,18 @@ inline fun <R> measureExecuteNano(tag: String, crossinline block: () -> R): R {
     "execute $tag: ${System.nanoTime() - start}ns".debugLog()
   }
 }
+
+
+suspend inline fun <R> measureSuspendMillis(tag: String, crossinline block: suspend () -> R): R {
+  val start = System.currentTimeMillis()
+  return block().apply {
+    "suspend $tag: ${System.currentTimeMillis() - start}ms".debugLog()
+  }
+}
+
+suspend inline fun <R> measureSuspendNano(tag: String, crossinline block: suspend () -> R): R {
+  val start = System.nanoTime()
+  return block().apply {
+    "suspend $tag: ${System.nanoTime() - start}ns".debugLog()
+  }
+}
