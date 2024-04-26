@@ -1,7 +1,5 @@
 plugins {
-  id("java-library")
   alias(libs.plugins.jetbrainsKotlinJvm)
-  id("com.google.devtools.ksp")
 }
 
 java {
@@ -9,10 +7,6 @@ java {
   targetCompatibility = JavaVersion.VERSION_17
 }
 
-ksp {
-  // arg("InflateViewBinding", "com.miyako.core.viewbinding.ksp.InflateProcessor")
-}
-
 dependencies {
-  implementation(libs.ksp.symbol)
+  implementation(libs.ksp.symbol.api)
 }

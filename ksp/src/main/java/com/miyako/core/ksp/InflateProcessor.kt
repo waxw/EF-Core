@@ -1,16 +1,20 @@
 package com.miyako.core.ksp
 
+import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
 
-class InflateProcessor: SymbolProcessor {
+class InflateProcessor(
+  private val logger: KSPLogger,
+): SymbolProcessor {
 
   override fun process(resolver: Resolver): List<KSAnnotated> {
+    logger.info("process")
     val generatedAnnotations = mutableListOf<KSAnnotated>()
 
-    val annotatedFunctions = resolver.getSymbolsWithAnnotation("com.miyako.core.ksp.InflateViewBinding")
+    val annotatedFunctions = resolver.getSymbolsWithAnnotation(InflateViewBinding::class.java.toString())
       .filterIsInstance<KSFunctionDeclaration>()
 
     annotatedFunctions.forEach { function ->
@@ -28,7 +32,8 @@ class InflateProcessor: SymbolProcessor {
       // val args = parameters.joinToString(", ") { it.name.asString() } // 参数列表
       // val generatedCode = "$genericType.$methodName($args)" // 生成代码
       // println("Generated code: $generatedCode")
-      println("type: $genericType")
+      logger.info("type: $genericType")
+      // println("type: $genericType")
     }
 
     return generatedAnnotations

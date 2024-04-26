@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.annotation.MainThread
 import androidx.viewbinding.ViewBinding
+import com.miyako.core.ksp.InflateViewBinding
 import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
 
@@ -41,6 +42,7 @@ sealed interface IBindingFragment<VB : ViewBinding> : IBinding<VB> {
   }
 }
 
+@InflateViewBinding
 inline fun <reified VB : ViewBinding> inflate(
   parent: ViewGroup,
   attachToParent: Boolean = false,

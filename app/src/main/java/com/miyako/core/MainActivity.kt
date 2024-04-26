@@ -5,12 +5,14 @@ import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableString
 import android.util.Log
+import android.view.ViewGroup
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.miyako.core.databinding.ActivityMainBinding
+import com.miyako.core.viewbinding.inflate
 import kotlinx.coroutines.delay
 
 class MainActivity : AppCompatActivity() {
@@ -29,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     val binding = ActivityMainBinding.inflate(layoutInflater)
+    inflate<ActivityMainBinding>(window.decorView as ViewGroup)
     setContentView(binding.root)
     ViewCompat.setOnApplyWindowInsetsListener(binding.main) { v, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
