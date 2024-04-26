@@ -13,6 +13,7 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
+import com.miyako.core.ksp.InflateViewBinding
 import java.util.Locale
 
 fun View.roundCorners(radius: Int) {
@@ -149,6 +150,7 @@ fun Context.changeLanguage(code: String?): Context? {
   }
 }
 
+@InflateViewBinding
 private fun getLocaleByCode(code: String?): Locale? {
   // 跟随系统。
   if (code.isNullOrEmpty()) return Locale.getDefault()

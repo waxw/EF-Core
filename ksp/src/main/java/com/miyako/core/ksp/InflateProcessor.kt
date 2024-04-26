@@ -11,11 +11,13 @@ class InflateProcessor(
 ): SymbolProcessor {
 
   override fun process(resolver: Resolver): List<KSAnnotated> {
-    logger.info("process")
+    logger.warn("process InflateViewBinding")
     val generatedAnnotations = mutableListOf<KSAnnotated>()
 
     val annotatedFunctions = resolver.getSymbolsWithAnnotation(InflateViewBinding::class.java.toString())
       .filterIsInstance<KSFunctionDeclaration>()
+    logger.warn("size: ${annotatedFunctions.toList().size}")
+
 
     annotatedFunctions.forEach { function ->
       val parameters = function.parameters
@@ -32,7 +34,7 @@ class InflateProcessor(
       // val args = parameters.joinToString(", ") { it.name.asString() } // 参数列表
       // val generatedCode = "$genericType.$methodName($args)" // 生成代码
       // println("Generated code: $generatedCode")
-      logger.info("type: $genericType")
+      logger.warn("type: $genericType")
       // println("type: $genericType")
     }
 
