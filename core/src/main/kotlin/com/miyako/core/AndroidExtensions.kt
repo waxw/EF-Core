@@ -150,7 +150,6 @@ fun Context.changeLanguage(code: String?): Context? {
   }
 }
 
-@InflateViewBinding
 private fun getLocaleByCode(code: String?): Locale? {
   // 跟随系统。
   if (code.isNullOrEmpty()) return Locale.getDefault()

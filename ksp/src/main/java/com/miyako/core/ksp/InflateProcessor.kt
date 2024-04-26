@@ -5,6 +5,10 @@ import com.google.devtools.ksp.processing.Resolver
 import com.google.devtools.ksp.processing.SymbolProcessor
 import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSFunctionDeclaration
+import com.google.devtools.ksp.symbol.KSNode
+import com.google.devtools.ksp.symbol.KSTypeParameter
+import com.google.devtools.ksp.symbol.KSValueParameter
+import com.google.devtools.ksp.visitor.KSEmptyVisitor
 
 class InflateProcessor(
   private val logger: KSPLogger,
@@ -14,28 +18,44 @@ class InflateProcessor(
     logger.warn("process InflateViewBinding")
     val generatedAnnotations = mutableListOf<KSAnnotated>()
 
-    val annotatedFunctions = resolver.getSymbolsWithAnnotation(InflateViewBinding::class.java.toString())
+    // 不能使用 InflateViewBinding::class.java.toString()
+    val annotationName = "com.miyako.core.ksp.InflateViewBinding"
+    logger.warn("name: [${InflateViewBinding::class.java.name}, $annotationName]")
+    val annotatedFunctions = resolver.getSymbolsWithAnnotation(InflateViewBinding::class.java.name)
       .filterIsInstance<KSFunctionDeclaration>()
     logger.warn("size: ${annotatedFunctions.toList().size}")
 
 
     annotatedFunctions.forEach { function ->
+      logger.warn("function: ${function.simpleName.asString()}")
       val parameters = function.parameters
-      val returnType = function.returnType?.resolve()?.declaration?.qualifiedName
+      val returnType = function.returnType?.resolve()
+      logger.warn("param: $parameters")
+      logger.warn("return: $returnType")
+      // function.typeParameters 可以拿到内联方法声明的泛型参数名，拿不到具体类型
+      logger.warn("return: ${function.typeParameters}")
 
-      // 检查参数中的泛型类型
-      val genericType = parameters.firstOrNull {
-        it.type.resolve().declaration.qualifiedName != null
+      function.typeParameters.forEach {
+        it.bounds
+        logger.warn("type bounds: ${it.isReified}, ${it.qualifiedName?.asString()}")
       }
-      // ?.type?.resolve()?.typeArguments?.firstOrNull()?.resolve()?.declaration?.qualifiedName?.asString()
+      function.accept(object : KSEmptyVisitor<Unit, Unit>() {
+        override fun visitValueParameter(valueParameter: KSValueParameter, data: Unit) {
+          logger.warn("visit value: $valueParameter")
+          return defaultHandler(valueParameter, data)
+        }
 
-      // // 生成替换的调用形式
-      // val methodName = "process" // 方法名
-      // val args = parameters.joinToString(", ") { it.name.asString() } // 参数列表
-      // val generatedCode = "$genericType.$methodName($args)" // 生成代码
-      // println("Generated code: $generatedCode")
-      logger.warn("type: $genericType")
-      // println("type: $genericType")
+        override fun defaultHandler(node: KSNode, data: Unit) = Unit
+      }, Unit)
+
+      if (returnType?.declaration is KSTypeParameter) {
+        logger.warn("return is KSTypeParameter: ${returnType.declaration is KSTypeParameter}")
+        logger.warn("${returnType.declaration.typeParameters}")
+        returnType.declaration.typeParameters.forEach {
+          val specificType = it.bounds.toList()[0].resolve().declaration.qualifiedName
+          logger.warn("Specific type for VB: $specificType")
+        }
+      }
     }
 
     return generatedAnnotations

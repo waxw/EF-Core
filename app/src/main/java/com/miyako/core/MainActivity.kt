@@ -13,6 +13,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.miyako.core.databinding.ActivityMainBinding
 import com.miyako.core.viewbinding.inflate
+import com.miyako.core.viewbinding.inflateKsp
 import kotlinx.coroutines.delay
 
 class MainActivity : AppCompatActivity() {
@@ -38,6 +39,9 @@ class MainActivity : AppCompatActivity() {
       v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
       insets
     }
+
+    inflateKsp(ActivityMainBinding::inflate, window.decorView as ViewGroup)
+    inflate<ActivityMainBinding>(window.decorView as ViewGroup)
 
     val s = null
     val title = s.init {
