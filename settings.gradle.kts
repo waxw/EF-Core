@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 rootProject.name = "EF-Core"
 include(":app")
 include(":core")
+include(":ksp")
