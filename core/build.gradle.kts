@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.androidLibrary)
   alias(libs.plugins.jetbrainsKotlinAndroid)
   `maven-publish`
+  alias(libs.plugins.ksp)
 }
 
 android {
@@ -40,6 +41,9 @@ android {
 }
 
 dependencies {
+
+  implementation(project(":ksp"))
+  ksp(project(":ksp"))
 
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)

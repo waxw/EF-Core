@@ -7,6 +7,6 @@ import com.google.devtools.ksp.processing.SymbolProcessorProvider
 class MviActionProvider: SymbolProcessorProvider {
 
   override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor {
-    return MviActionProcessor()
+    return MviActionProcessor(environment.codeGenerator, environment.logger)
   }
 }
