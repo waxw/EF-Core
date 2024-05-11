@@ -7,6 +7,7 @@ junit = "4.13.2"
 junitVersion = "1.1.5"
 espressoCore = "3.5.1"
 appcompat = "1.6.1"
+kotlinpoet = "1.14.2"
 material = "1.11.0"
 jetbrainsKotlinJvm = "1.9.21"
 ksp = "1.9.21-1.0.15"
@@ -21,6 +22,8 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 # 编写注解处理器需要
 ksp-symbol-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }
+# 生成 kotlin 代码
+kotlinpoet = { module = "com.squareup:kotlinpoet", version.ref = "kotlinpoet" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

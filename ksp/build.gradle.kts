@@ -10,4 +10,5 @@ java {
 
 dependencies {
   implementation(libs.ksp.symbol.api)
+  implementation(libs.kotlinpoet)
 }
