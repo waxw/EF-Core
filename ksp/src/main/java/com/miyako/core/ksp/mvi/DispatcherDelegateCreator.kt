@@ -7,6 +7,7 @@ import com.google.devtools.ksp.processing.CodeGenerator
 import com.google.devtools.ksp.processing.Dependencies
 import com.google.devtools.ksp.processing.KSPLogger
 import com.google.devtools.ksp.symbol.KSClassDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.google.devtools.ksp.symbol.KSVisitorVoid
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
@@ -14,8 +15,10 @@ import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.UNIT
 
 class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, private val logger: KSPLogger) :
   KSVisitorVoid() {
@@ -29,29 +32,49 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
     val dispatchFunctions =
       classDeclaration.getDeclaredFunctions().filter { it.isAnnotationPresent(DispatchAction::class) }.toList()
     if (dispatchFunctions.size != 1) {
-      logger.warn("@DispatcherFunction must only one in class")
+      logger.error("@DispatcherFunction must only one in class")
     } else {
-      val function = dispatchFunctions.first()
-      logger.warn("func: $packageName.$className.${function.qualifiedName?.asString() ?: "none"}")
+      // 需要导入的包
+      val importClassList = mutableListOf<ClassName>()
+      val dispatcherAction = dispatchFunctions.first().annotations.first {
+        DispatchAction::class.qualifiedName == it.annotationType.resolve().declaration.qualifiedName?.asString()
+      }
+
+      var parameterSpec: ClassName = UNIT
+      var returnSpec: ClassName = UNIT
+      dispatcherAction.arguments.forEach {
+        val declaration = (it.value as? KSType)?.declaration
+        logger.warn("dec: $declaration")
+        when (it.name?.asString()) {
+          DispatchAction::param.name -> {
+            ClassName.bestGuess(declaration!!.qualifiedName!!.asString()).also {
+              importClassList.add(it)
+              parameterSpec = it
+              logger.warn("param: $it")
+            }
+          }
+
+          DispatchAction::returnType.name -> {
+            ClassName.bestGuess(declaration!!.qualifiedName!!.asString()).also {
+              importClassList.add(it)
+              returnSpec = it
+              logger.warn("return: $it")
+            }
+          }
+        }
+      }
       val actionFunctionList =
         classDeclaration.getDeclaredFunctions().filter { it.isAnnotationPresent(Action::class) }
 
-      val importClassList = mutableListOf<Pair<String, String>>()
-      val parameterSpecList = function.parameters.map {
-        val paramName = it.name?.asString() ?: "any"
-        val paramType = it.type.resolve().declaration.let {
-          val pair = it.packageName.asString() to it.simpleName.asString()
-          logger.warn("pkg: ${it.qualifiedName?.asString()}")
-          importClassList.add(it.qualifiedName!!.asString() to it.simpleName.asString())
-          ClassName(pair.first, pair.second)
-        }
-        ParameterSpec.builder(paramName, paramType).build()
-      }
       val ktFileBuilder = FileSpec.builder(packageName, "$className.kt")
 
       val classBuilder = TypeSpec.classBuilder(className)
 
       val clazz = ClassName(classDeclaration.packageName.asString(), classDeclaration.simpleName.asString())
+
+      val interfaceSpec = ClassName("com.miyako.core.ksp.mvi", "IDispatcher")
+
+      classBuilder.addSuperinterface(interfaceSpec.parameterizedBy(listOf(parameterSpec, returnSpec)))
 
       // 构造方法字段
       val constructor = FunSpec.constructorBuilder()
@@ -68,21 +91,26 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
             .addModifiers(KModifier.PRIVATE).initializer("target").build()
         )
 
-      val functionBuilder = FunSpec.builder("dispatchFunction")
-        .addParameters(parameterSpecList)
+      val paramName = "arg"
+
+      val functionBuilder = FunSpec.builder("dispatch")
+        .addModifiers(KModifier.OVERRIDE)
+        .addParameter(paramName, parameterSpec)
+        .returns(returnSpec)
 
       val codeBuilder = CodeBlock.builder()
-      codeBuilder.beginControlFlow("when (${parameterSpecList.first().name})")
+      codeBuilder.beginControlFlow("return when ($paramName)")
       actionFunctionList.forEach {
-        logger.warn("action: ${it.simpleName}, ${it.parameters}")
         val function = it.simpleName.asString()
         val action = it.parameters.firstOrNull()?.type?.resolve()?.declaration?.let {
-          importClassList.add(it.qualifiedName!!.asString() to it.simpleName.asString())
-          ClassName(it.packageName.asString(), it.simpleName.asString())
+          ClassName.bestGuess(it.qualifiedName!!.asString()).also {
+            importClassList.add(it)
+          }
         }
+        logger.warn("action: $function, ${it.parameters}")
         if (action != null) {
           codeBuilder.beginControlFlow("is %L -> ", action.simpleName)
-          codeBuilder.add("target.%L(%L)", function, parameterSpecList.map { it.name }.joinToString())
+          codeBuilder.add("target.%L(%L)", function, paramName)
           codeBuilder.endControlFlow()
         }
       }
@@ -95,7 +123,7 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
         ).build()
       )
       importClassList.forEach {
-        ktFileBuilder.addImport(ClassName.bestGuess(it.first), "")
+        ktFileBuilder.addImport(it, "")
       }
       ktFileBuilder
         .addType(classBuilder.build())
