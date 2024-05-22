@@ -9,4 +9,4 @@ annotation class Action
 annotation class DispatchAction(val param: KClass<*>, val returnType: KClass<*> = Unit::class)
 
 @Target(AnnotationTarget.CLASS)
-annotation class OverrideDispatcher
+annotation class DelegateDispatch
