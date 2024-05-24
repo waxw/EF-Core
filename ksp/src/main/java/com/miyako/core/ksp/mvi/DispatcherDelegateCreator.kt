@@ -40,13 +40,15 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
         DispatchAction::class.qualifiedName == it.annotationType.resolve().declaration.qualifiedName?.asString()
       }
 
+      var paramType: KSType? = null
+      var returnType: KSType? = null
       var parameterSpec: ClassName = UNIT
       var returnSpec: ClassName = UNIT
       dispatcherAction.arguments.forEach {
         val declaration = (it.value as? KSType)?.declaration
-        logger.warn("dec: $declaration")
         when (it.name?.asString()) {
           DispatchAction::param.name -> {
+            paramType = (it.value as? KSType)
             ClassName.bestGuess(declaration!!.qualifiedName!!.asString()).also {
               importClassList.add(it)
               parameterSpec = it
@@ -55,6 +57,7 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
           }
 
           DispatchAction::returnType.name -> {
+            returnType = (it.value as? KSType)
             ClassName.bestGuess(declaration!!.qualifiedName!!.asString()).also {
               importClassList.add(it)
               returnSpec = it
@@ -100,20 +103,31 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
 
       val codeBuilder = CodeBlock.builder()
       codeBuilder.beginControlFlow("return when ($paramName)")
-      actionFunctionList.forEach {
-        val function = it.simpleName.asString()
-        val action = it.parameters.firstOrNull()?.type?.resolve()?.declaration?.let {
-          ClassName.bestGuess(it.qualifiedName!!.asString()).also {
-            importClassList.add(it)
+      actionFunctionList
+        .filter {
+          if (it.parameters.size == 1 && it.returnType != null) {
+            val actionP = it.parameters.first()
+            val actionR = it.returnType
+            val msg = "fun ${it.simpleName.asString()}" +
+              "(${actionP.name?.asString()} ${actionP.type.resolve().declaration.qualifiedName?.asString()}): " +
+              "${actionR?.resolve()?.declaration?.qualifiedName?.asString()}"
+            logger.warn(msg)
+            // 检查是否为目标类型或者及其子类
+            paramType?.isAssignableFrom(actionP.type.resolve()) == true && returnType?.isAssignableFrom(actionR!!.resolve()) == true
+          } else false
+        }.forEach {
+          val function = it.simpleName.asString()
+          val action = it.parameters.firstOrNull()?.type?.resolve()?.declaration?.let {
+            ClassName.bestGuess(it.qualifiedName!!.asString()).also {
+              importClassList.add(it)
+            }
+          }
+          if (action != null) {
+            codeBuilder.beginControlFlow("is %L -> ", action.simpleName)
+            codeBuilder.add("target.%L(%L)", function, paramName)
+            codeBuilder.endControlFlow()
           }
         }
-        logger.warn("action: $function, ${it.parameters}")
-        if (action != null) {
-          codeBuilder.beginControlFlow("is %L -> ", action.simpleName)
-          codeBuilder.add("target.%L(%L)", function, paramName)
-          codeBuilder.endControlFlow()
-        }
-      }
       codeBuilder.beginControlFlow("else ->").endControlFlow()
       codeBuilder.endControlFlow()
 
