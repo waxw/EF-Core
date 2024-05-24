@@ -26,25 +26,21 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
   @OptIn(KspExperimental::class)
   override fun visitClassDeclaration(classDeclaration: KSClassDeclaration, data: Unit) {
     val packageName = classDeclaration.containingFile?.packageName!!.asString()
-    val className = classDeclaration.simpleName.asString() + "Dispatcher"
 
     logger.warn("size: ${classDeclaration.getDeclaredFunctions().toList().size}")
-    val dispatchFunctions =
-      classDeclaration.getDeclaredFunctions().filter { it.isAnnotationPresent(DispatchAction::class) }.toList()
-    if (dispatchFunctions.size != 1) {
-      logger.error("@DispatcherFunction must only one in class")
-    } else {
-      // 需要导入的包
-      val importClassList = mutableListOf<ClassName>()
-      val dispatcherAction = dispatchFunctions.first().annotations.first {
-        DispatchAction::class.qualifiedName == it.annotationType.resolve().declaration.qualifiedName?.asString()
-      }
 
+    // 需要导入的包
+    val importClassList = mutableListOf<ClassName>()
+    val listDispatch = mutableListOf<Pair<KSType?, KSType?>>()
+
+    classDeclaration.getDeclaredFunctions().filter { it.isAnnotationPresent(DispatchAction::class) }.forEach {
       var paramType: KSType? = null
       var returnType: KSType? = null
       var parameterSpec: ClassName = UNIT
       var returnSpec: ClassName = UNIT
-      dispatcherAction.arguments.forEach {
+      it.annotations.find {
+        DispatchAction::class.qualifiedName == it.annotationType.resolve().declaration.qualifiedName?.asString()
+      }?.arguments?.forEach {
         val declaration = (it.value as? KSType)?.declaration
         when (it.name?.asString()) {
           DispatchAction::param.name -> {
@@ -66,6 +62,9 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
           }
         }
       }
+      listDispatch.add(paramType to returnType)
+      val className = classDeclaration.simpleName.asString() + "_${parameterSpec.simpleName}${returnSpec.simpleName}Dispatcher"
+
       val actionFunctionList =
         classDeclaration.getDeclaredFunctions().filter { it.isAnnotationPresent(Action::class) }
 
