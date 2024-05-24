@@ -78,7 +78,7 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
 
       val clazz = ClassName(classDeclaration.packageName.asString(), classDeclaration.simpleName.asString())
 
-      val interfaceSpec = ClassName("com.miyako.core.ksp.mvi", "IDispatcher")
+      val interfaceSpec = ClassName("com.miyako.core.ksp.mvi", "IDelegateDispatcher")
 
       classBuilder.addSuperinterface(interfaceSpec.parameterizedBy(listOf(parameterSpec, returnSpec)))
 

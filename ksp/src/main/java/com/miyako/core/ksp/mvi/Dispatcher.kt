@@ -1,14 +1,14 @@
 package com.miyako.core.ksp.mvi
 
-interface IDispatcher<T, R> {
+interface IDelegateDispatcher<T, R> {
   fun dispatch(arg: T): R
 }
 
 object Dispatcher {
 
-  private val bindMap: MutableMap<Any, IDispatcher<*, *>> = mutableMapOf()
+  private val bindMap: MutableMap<Any, IDelegateDispatcher<*, *>> = mutableMapOf()
 
-  private fun generatedDispatcher(obj: Any): IDispatcher<*, *> {
+  private fun generatedDispatcher(obj: Any): IDelegateDispatcher<*, *> {
     val clazz = obj::class
     val className = clazz.qualifiedName!! + "Dispatcher"
     val newClazz = Class.forName(className).kotlin
@@ -17,7 +17,7 @@ object Dispatcher {
       val constructor = it.parameters.firstOrNull()
       constructor != null && clazz == constructor.type.classifier
     }?.let {
-      it.call(obj) as IDispatcher<*, *>
+      it.call(obj) as IDelegateDispatcher<*, *>
     } ?: throw IllegalArgumentException()
   }
 
@@ -34,6 +34,6 @@ object Dispatcher {
   }
 
   fun <T, R> dispatch(obj: Any, arg: T): R {
-    return (bindMap[obj] as? IDispatcher<T, R>)?.dispatch(arg) ?: throw IllegalArgumentException()
+    return (bindMap[obj] as? IDelegateDispatcher<T, R>)?.dispatch(arg) ?: throw IllegalArgumentException()
   }
 }
