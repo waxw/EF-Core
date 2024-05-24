@@ -1,6 +1,8 @@
 package com.miyako.core.ksp.mvi
 
 import kotlin.reflect.KClass
+import kotlin.reflect.KMutableProperty
+import kotlin.reflect.jvm.isAccessible
 
 interface IDelegateDispatcher<T, R> {
   val p: KClass<*>
@@ -33,24 +35,50 @@ inline fun <reified T, reified R> defReturn(tag: String, crossinline block: (T) 
 
 object Dispatcher {
 
-  private val bindMap: MutableMap<Any, IDelegateDispatcher<*, *>> = mutableMapOf()
+  private val bindMap: MutableMap<Any, List<Pair<String, IDelegateDispatcher<*, *>>>> = mutableMapOf()
 
-  private fun generatedDispatcher(obj: Any): IDelegateDispatcher<*, *> {
+  private fun generatedDispatcher(
+    obj: Any,
+    defReturnArr: Array<out DefReturn<*, *>>
+  ): List<Pair<String, IDelegateDispatcher<*, *>>> {
     val clazz = obj::class
-    val className = clazz.qualifiedName!! + "Dispatcher"
-    val newClazz = Class.forName(className).kotlin
-
-    return newClazz.constructors.firstOrNull {
-      val constructor = it.parameters.firstOrNull()
-      constructor != null && clazz == constructor.type.classifier
-    }?.let {
-      it.call(obj) as IDelegateDispatcher<*, *>
-    } ?: throw IllegalArgumentException()
+    val buildObject = Class.forName("${clazz.qualifiedName!!}_Build")
+    val buildList = buildObject.declaredFields.map {
+      it.isAccessible = true
+      it.get(null) as? String ?: ""
+    }
+    println("buildList: $buildList")
+    val result = mutableListOf<Pair<String, IDelegateDispatcher<*, *>>>()
+    buildList.forEach { className ->
+      if (className.isNotEmpty()) {
+        val delegateClass = Class.forName(className)
+        delegateClass.kotlin.constructors.firstOrNull {
+          val constructor = it.parameters.firstOrNull()
+          constructor != null && clazz == constructor.type.classifier
+        }?.let {
+          val delegate = it.call(obj) as IDelegateDispatcher<*, *>
+          defReturnArr.find {
+            it.p == delegate.p && it.r == delegate.r
+          }?.let {
+            val field = delegateClass.kotlin.members.filterIsInstance<KMutableProperty<*>>().find { it.name == "defReturn" }
+            if (field != null) {
+              field.isAccessible = true
+              println("set: ${it.tag}->$delegate")
+              field.setter.call(delegate, it.getDefault)
+            }
+          }
+          delegate
+        }?.let {
+          result.add(className to it)
+        }
+      }
+    }
+    return result
   }
 
-  fun bind(obj: Any) {
+  fun bind(obj: Any, vararg defReturn: DefReturn<*, *>) {
     if (bindMap.contains(obj).not()) {
-      bindMap[obj] = generatedDispatcher(obj)
+      bindMap[obj] = generatedDispatcher(obj, defReturn)
     }
   }
 
@@ -60,7 +88,18 @@ object Dispatcher {
     }
   }
 
-  fun <T, R> dispatch(obj: Any, arg: T): R {
-    return (bindMap[obj] as? IDelegateDispatcher<T, R>)?.dispatch(arg) ?: throw IllegalArgumentException()
+  inline fun <T, reified R> dispatch(obj: Any, arg: T): R {
+    return dispatch(obj, arg, R::class)
+  }
+
+  fun <T, R> dispatch(obj: Any, arg: T, returnType: KClass<*>): R {
+    val className = arg!!::class
+    return bindMap[obj]?.find {
+      println("dispatch: $className, $returnType")
+      println("find: ${it.second.p}, ${it.second.r}")
+      it.second.p.isInstance(arg) && it.second.r == returnType
+    }?.let {
+      (it.second as? IDelegateDispatcher<T, R>)?.dispatch(arg)
+    } ?: throw IllegalArgumentException("Not Fond $className")
   }
 }
