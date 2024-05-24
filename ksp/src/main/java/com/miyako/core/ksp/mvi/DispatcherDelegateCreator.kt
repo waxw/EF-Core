@@ -33,6 +33,8 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
     val importClassList = mutableListOf<ClassName>()
     val listDispatch = mutableListOf<Pair<KSType?, KSType?>>()
 
+    val buildClass = mutableListOf<String>()
+
     classDeclaration.getDeclaredFunctions().filter { it.isAnnotationPresent(DispatchAction::class) }.forEach {
       var paramType: KSType? = null
       var returnType: KSType? = null
@@ -63,7 +65,9 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
         }
       }
       listDispatch.add(paramType to returnType)
-      val className = classDeclaration.simpleName.asString() + "_${parameterSpec.simpleName}${returnSpec.simpleName}Dispatcher"
+      val className =
+        classDeclaration.simpleName.asString() + "_${parameterSpec.simpleName}${returnSpec.simpleName}Dispatcher"
+      buildClass.add("${classDeclaration.qualifiedName?.asString()}_${parameterSpec.simpleName}${returnSpec.simpleName}Dispatcher")
 
       val actionFunctionList =
         classDeclaration.getDeclaredFunctions().filter { it.isAnnotationPresent(Action::class) }
@@ -154,5 +158,28 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
           }
         }
     }
+    val buildClassFile = "${classDeclaration.simpleName.asString()}_Build"
+    val build = TypeSpec.objectBuilder(buildClassFile)
+    buildClass.forEach {
+      logger.warn("generate class: $it")
+      val key = it.split("_")[1]
+      build.addProperty(PropertySpec.builder(key, String::class, KModifier.PUBLIC).initializer("%S", it).build())
+
+    }
+    FileSpec.builder(packageName, ".kt")
+      .addType(build.build())
+      .build().let {
+        codeGenerator.createNewFile(
+          dependencies = Dependencies(
+            true,
+            classDeclaration.containingFile!!
+          ),
+          packageName = packageName,
+          fileName = buildClassFile,
+          extensionName = "kt"
+        ).bufferedWriter().use { file ->
+          it.writeTo(file)
+        }
+      }
   }
 }
