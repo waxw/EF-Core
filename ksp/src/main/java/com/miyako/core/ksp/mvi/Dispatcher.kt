@@ -1,7 +1,34 @@
 package com.miyako.core.ksp.mvi
 
+import kotlin.reflect.KClass
+
 interface IDelegateDispatcher<T, R> {
+  val p: KClass<*>
+  val r: KClass<*>
+  var defReturn: Return<T, R>
   fun dispatch(arg: T): R
+}
+
+abstract class DefReturn<T, R>(
+  val tag: String
+) {
+  abstract val p: KClass<*>
+  abstract val r: KClass<*>
+  abstract val getDefault: Return<T, R>
+}
+
+fun interface Return<in T, R> {
+  fun apply(t: T): R
+}
+
+inline fun <reified T, reified R> defReturn(tag: String, crossinline block: (T) -> R): DefReturn<T, R> {
+  return object : DefReturn<T, R>(tag) {
+    override val p = T::class
+    override val r = R::class
+    override val getDefault = Return<T, R> {
+      block.invoke(it)
+    }
+  }
 }
 
 object Dispatcher {

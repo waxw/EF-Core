@@ -17,8 +17,12 @@ import com.squareup.kotlinpoet.KModifier
 import com.squareup.kotlinpoet.ParameterSpec
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import com.squareup.kotlinpoet.PropertySpec
+import com.squareup.kotlinpoet.STAR
+import com.squareup.kotlinpoet.TypeName
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.UNIT
+import com.squareup.kotlinpoet.asClassName
+import kotlin.reflect.KClass
 
 class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, private val logger: KSPLogger) :
   KSVisitorVoid() {
@@ -91,11 +95,15 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
           ).build()
         )
 
+      val kClass = KClass::class.asClassName().parameterizedBy(STAR)
+
       classBuilder.primaryConstructor(constructor.build())
         .addProperty(
           PropertySpec.builder("target", clazz)
             .addModifiers(KModifier.PRIVATE).initializer("target").build()
-        )
+        ).addProperty(createDefReturn(getDefReturnTypeName(parameterSpec, returnSpec)).build())
+        .addProperty(createOverrideProperty("p", kClass).initializer("%L::class", parameterSpec).build())
+        .addProperty(createOverrideProperty("r", kClass).initializer("%L::class", returnSpec).build())
 
       val paramName = "arg"
 
@@ -127,11 +135,14 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
           }
           if (action != null) {
             codeBuilder.beginControlFlow("is %L -> ", action.simpleName)
-            codeBuilder.add("target.%L(%L)", function, paramName)
-            codeBuilder.endControlFlow()
+              .add("target.%L(%L)", function, paramName)
+              .endControlFlow()
           }
         }
-      codeBuilder.beginControlFlow("else ->").endControlFlow()
+      codeBuilder.beginControlFlow("else ->")
+        .add("defReturn.apply(%L)", paramName)
+        .endControlFlow()
+
       codeBuilder.endControlFlow()
 
       classBuilder.addFunction(
@@ -181,5 +192,21 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
           it.writeTo(file)
         }
       }
+  }
+
+  private fun getDefReturnTypeName(parameterSpec: ClassName, returnSpec: ClassName): TypeName {
+    return Return::class.asClassName().parameterizedBy(parameterSpec, returnSpec)
+  }
+
+  private fun createOverrideProperty(name: String, typeName: TypeName): PropertySpec.Builder {
+    return PropertySpec.builder(name, typeName).addModifiers(KModifier.OVERRIDE)
+  }
+
+  private fun createDefReturn(defReturn: TypeName): PropertySpec.Builder {
+    return PropertySpec.builder("defReturn", defReturn)
+      .addModifiers(KModifier.OVERRIDE)
+      .addModifiers(KModifier.LATEINIT)
+      .mutable(true)
+    // .initializer("defReturn")
   }
 }
