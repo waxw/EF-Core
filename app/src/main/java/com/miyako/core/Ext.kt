@@ -1,6 +1,5 @@
 package com.miyako.core
 
-
 inline fun <T> T?.miyako(action: T?.() -> Unit): T? {
   this?.action()
   return this
