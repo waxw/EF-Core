@@ -13,8 +13,4 @@ abstract class MviViewModel<S: BaseUiState, E: BaseUiEffect, A: BaseUiAction>: V
 
   protected abstract val _uiEffect: MutableSharedFlow<E>
   val uiEffect: SharedFlow<E> = _uiEffect
-
-  fun dispatch(action: A) {
-
-  }
 }
