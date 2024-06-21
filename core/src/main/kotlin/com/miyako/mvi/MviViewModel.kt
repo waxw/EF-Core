@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
-abstract class MviViewModel<S: BaseUiState, E: BaseUiEffect, A: BaseUiAction>: ViewModel() {
+abstract class MviViewModel<S: UiState, E: UiEffect, A: UiAction>: ViewModel() {
 
   protected abstract val _uiState: MutableStateFlow<S>
   val uiState: StateFlow<S> = _uiState
