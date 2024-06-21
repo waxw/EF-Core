@@ -6,11 +6,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 
-abstract class MviViewModel<S: UiState, E: UiEffect, A: UiAction>: ViewModel() {
+abstract class MviViewModel<S : UiState, E : UiEffect, A : UiAction> : ViewModel() {
 
   protected abstract val _uiState: MutableStateFlow<S>
-  val uiState: StateFlow<S> = _uiState
+  val uiState: StateFlow<S> by lazy { _uiState }
 
   protected abstract val _uiEffect: MutableSharedFlow<E>
-  val uiEffect: SharedFlow<E> = _uiEffect
+  val uiEffect: SharedFlow<E> by lazy { _uiEffect }
 }
