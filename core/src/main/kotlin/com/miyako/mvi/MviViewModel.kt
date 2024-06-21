@@ -11,6 +11,6 @@ abstract class MviViewModel<S : UiState, E : UiEffect, A : UiAction> : ViewModel
   protected abstract val _uiState: MutableStateFlow<S>
   val uiState: StateFlow<S> by lazy { _uiState }
 
-  protected abstract val _uiEffect: MutableSharedFlow<E>
+  protected open val _uiEffect: MutableSharedFlow<E> = MutableSharedFlow()
   val uiEffect: SharedFlow<E> by lazy { _uiEffect }
 }
