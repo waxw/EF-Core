@@ -44,6 +44,16 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
       var returnType: KSType? = null
       var parameterSpec: ClassName = UNIT
       var returnSpec: ClassName = UNIT
+      val funName = it.simpleName.asString()
+      val funParam = it.parameters.firstOrNull()
+      if (funParam == null) {
+        logger.error("@DispatchAction function must have one parameter")
+        return
+      }
+      val funReturn = it.returnType?.resolve()
+      val msg = "${funParam.name?.asString()}: ${funParam.type.resolve().declaration.qualifiedName?.asString()}"
+
+      logger.warn("dispatch fun $funName($msg): ${it.returnType?.resolve()?.declaration?.qualifiedName?.asString()}")
       it.annotations.find {
         DispatchAction::class.qualifiedName == it.annotationType.resolve().declaration.qualifiedName?.asString()
       }?.arguments?.forEach {
@@ -54,7 +64,7 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
             ClassName.bestGuess(declaration!!.qualifiedName!!.asString()).also {
               importClassList.add(it)
               parameterSpec = it
-              logger.warn("param: $it")
+              logger.warn("@DispatchAction param: $it")
             }
           }
 
@@ -63,10 +73,15 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
             ClassName.bestGuess(declaration!!.qualifiedName!!.asString()).also {
               importClassList.add(it)
               returnSpec = it
-              logger.warn("return: $it")
+              logger.warn("@DispatchAction returnType: $it")
             }
           }
         }
+      }
+      if (parameterSpec != ClassName.bestGuess(funParam.type.resolve().declaration.qualifiedName!!.asString()) ||
+        returnSpec != ClassName.bestGuess(funReturn!!.declaration.qualifiedName!!.asString())) {
+        logger.error("@DispatchAction param or returnType not match ${it.location} function `$funName` param or returnType")
+        return
       }
       listDispatch.add(paramType to returnType)
       val className =
@@ -119,7 +134,7 @@ class DispatcherDelegateCreator(private val codeGenerator: CodeGenerator, privat
           if (it.parameters.size == 1 && it.returnType != null) {
             val actionP = it.parameters.first()
             val actionR = it.returnType
-            val msg = "fun ${it.simpleName.asString()}" +
+            val msg = "delegate fun ${it.simpleName.asString()}" +
               "(${actionP.name?.asString()} ${actionP.type.resolve().declaration.qualifiedName?.asString()}): " +
               "${actionR?.resolve()?.declaration?.qualifiedName?.asString()}"
             logger.warn(msg)
