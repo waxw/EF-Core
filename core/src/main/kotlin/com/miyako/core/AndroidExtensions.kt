@@ -1,5 +1,7 @@
 package com.miyako.core
 
+import android.content.Context
+import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.Outline
@@ -11,9 +13,19 @@ import android.util.TypedValue
 import android.view.View
 import android.view.ViewOutlineProvider
 import android.view.ViewTreeObserver
+import java.util.Locale
 
 fun View.roundCorners(radius: Int) {
-  roundCorners(radius, radius)
+  this.outlineProvider =
+    object : ViewOutlineProvider() {
+      override fun getOutline(
+        view: View,
+        outline: Outline
+      ) {
+        outline.setRoundRect(0, 0, view.width, view.height, radius.toFloat())
+      }
+    }
+  this.clipToOutline = true
 }
 
 fun View.roundCorners(radiusX: Int, radiusY: Int) {
@@ -26,7 +38,7 @@ fun View.roundCorners(radiusX: Int, radiusY: Int) {
   }
 }
 
-fun View.roundCorner(radiusArr: FloatArray) {
+fun View.roundCorners(radiusArr: FloatArray) {
   if (radiusArr.size < 8) return
   clipPath { view, path ->
     path.addRoundRect(
@@ -37,7 +49,10 @@ fun View.roundCorner(radiusArr: FloatArray) {
   }
 }
 
-private inline fun View.clipPath(crossinline action: (View, Path) -> Unit) {
+/**
+ * 只有 API 33 才生效
+ */
+fun View.clipPath(action: (View, Path) -> Unit) {
   this.outlineProvider = object : ViewOutlineProvider() {
     override fun getOutline(view: View, outline: Outline) {
       val path = Path()
@@ -117,3 +132,31 @@ val Number.sp: Int
       }
     }
   }
+
+fun Context.changeLanguage(code: String?): Context? {
+  return try {
+    val locale = getLocaleByCode(code)
+    "change local: $locale".debugLog()
+    if (locale == null) return null
+    val configuration = Configuration(resources.configuration)
+    configuration.setLocale(locale)
+    // api 17 废弃，仍可以生效
+    resources.updateConfiguration(configuration, resources.displayMetrics)
+    createConfigurationContext(configuration)
+  } catch (e: Exception) {
+    e.printStackTrace()
+    null
+  }
+}
+
+private fun getLocaleByCode(code: String?): Locale? {
+  // 跟随系统。
+  if (code.isNullOrEmpty()) return Locale.getDefault()
+  val list = code.split(",")
+  if (list.size < 2) return null
+  return if (list[1].trim().isEmpty()) {
+    Locale(list[0])
+  } else {
+    Locale(list[0], list[1])
+  }
+}

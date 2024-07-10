@@ -1,3 +1,4 @@
 <resources>
-    <string name="app_name">EF-Core</string>
+  <string name="app_name">EF-Core</string>
+  <string name="text1">Test</string>
 </resources>

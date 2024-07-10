@@ -1,16 +1,31 @@
 package com.miyako.core
 
+import android.content.Context
 import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableString
+import android.util.Log
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
 import com.miyako.core.databinding.ActivityMainBinding
+import kotlinx.coroutines.delay
 
 class MainActivity : AppCompatActivity() {
+
+  private val sp by unsafeLazy { getSharedPreferences("language", MODE_PRIVATE) }
+
+  override fun attachBaseContext(newBase: Context?) {
+    val language = newBase?.getSharedPreferences("language", MODE_PRIVATE)?.getString("set_language", "")
+    "language: $language".debugLog()
+    val base = newBase?.changeLanguage(language) ?: newBase
+    super.attachBaseContext(base)
+  }
+
   override fun onCreate(savedInstanceState: Bundle?) {
+
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
     val binding = ActivityMainBinding.inflate(layoutInflater)
@@ -38,5 +53,43 @@ class MainActivity : AppCompatActivity() {
       .clickable("xiao", Color.GREEN) {
 
       }
+
+    binding.btnChangeChinese.setOnClickListener {
+      val s = measureExecuteNano("ns") {
+        setLanguage("zh,CN")
+        // return@setOnClickListener
+        return@measureExecuteNano
+      }
+    }
+
+    binding.btnChangeDefault.setOnClickListener {
+      lifecycleScope.launchDefault {
+        cnt++
+        val s = measureSuspendMillis("click") {
+          // setLanguage("en,US")
+          // return@setOnClickListener 1
+          Log.d("miyako", "measureExecuteMillis")
+          if (cnt % 2 == 0) {
+            return@measureSuspendMillis run {
+              delay(3000)
+              -1
+            }
+          }
+          delay(1000)
+          1
+        }
+        Log.d("miyako", "res: $s")
+      }
+    }
+  }
+
+  private var cnt = 0
+
+  private fun setLanguage(code: String) {
+    if (this.changeLanguage(code) != null) {
+      "success: $code".debugLog()
+    }
+    sp.edit().putString("set_language", code).commit()
+    recreate()
   }
 }

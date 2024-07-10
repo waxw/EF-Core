@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.androidApplication)
   alias(libs.plugins.jetbrainsKotlinAndroid)
+  alias(libs.plugins.ksp)
 }
 
 android {
@@ -17,8 +18,20 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  signingConfigs.create("core") {
+    storeFile = file("../ef_core.keystore")
+    storePassword = "ef_core"
+    keyAlias = "ef_core"
+    keyPassword = "ef_core"
+  }
+
+
   buildTypes {
+    debug {
+      signingConfig = signingConfigs.getByName("core")
+    }
     release {
+      signingConfig = signingConfigs.getByName("core")
       isMinifyEnabled = false
       proguardFiles(
         getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -42,6 +55,9 @@ android {
 dependencies {
 
   implementation(project(":core"))
+  implementation(project(":ksp"))
+  ksp(project(":ksp"))
+
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
   implementation(libs.material)

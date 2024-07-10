@@ -20,5 +20,25 @@
     android:layout_height="44dp"
     android:gravity="center" />
 
+  <TextView
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="@string/text1"
+    android:textSize="26sp" />
+
+  <Button
+    android:id="@+id/btnChangeChinese"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="中文" />
+
+  <Button
+    android:id="@+id/btnChangeDefault"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="English" />
 
 </LinearLayout>

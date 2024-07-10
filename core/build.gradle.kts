@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.androidLibrary)
   alias(libs.plugins.jetbrainsKotlinAndroid)
   `maven-publish`
+  alias(libs.plugins.ksp)
 }
 
 android {
@@ -15,9 +16,13 @@ android {
     consumerProguardFiles("consumer-rules.pro")
   }
 
+  buildFeatures {
+    viewBinding = true
+  }
+
   buildTypes {
     release {
-      isMinifyEnabled = false
+      isMinifyEnabled = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
     }
   }
@@ -40,6 +45,9 @@ android {
 }
 
 dependencies {
+
+  implementation(project(":ksp"))
+  ksp(project(":ksp"))
 
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
