@@ -1,6 +1,6 @@
 [versions]
 agp = "8.3.0"
-kotlin = "1.9.20"
+kotlin = "2.0.0"
 kotlinter = "4.2.0"
 coreKtx = "1.12.0"
 junit = "4.13.2"
