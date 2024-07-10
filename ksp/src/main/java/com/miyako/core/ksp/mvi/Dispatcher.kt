@@ -66,7 +66,7 @@ object Dispatcher {
               println("set: ${it.tag}->$delegate")
               field.setter.call(delegate, it.getDefault)
             }
-          }
+          } ?: throw IllegalArgumentException("defReturn field is not initialized")
           delegate
         }?.let {
           result.add(className to it)
