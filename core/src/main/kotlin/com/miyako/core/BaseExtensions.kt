@@ -31,6 +31,16 @@ inline fun Boolean?.ifFalse(block: () -> Unit): Boolean? {
   return this
 }
 
+inline fun <T> T?.withNull(block: () -> Unit): Boolean {
+  if (this == null) block()
+  return this == null
+}
+
+inline fun <T> T?.withNotNull(block: (T) -> Unit): Boolean {
+  if (this != null) block(this)
+  return this != null
+}
+
 fun <T> unsafeLazy(initializer: () -> T): Lazy<T> = lazy(LazyThreadSafetyMode.NONE, initializer)
 
 val Any.hex: String
