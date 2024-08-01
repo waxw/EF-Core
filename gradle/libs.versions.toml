@@ -1,6 +1,6 @@
 [versions]
 agp = "8.3.0"
-kotlin = "1.9.20"
+kotlin = "2.0.0"
 kotlinter = "4.2.0"
 coreKtx = "1.12.0"
 junit = "4.13.2"
@@ -9,8 +9,8 @@ espressoCore = "3.5.1"
 appcompat = "1.6.1"
 kotlinpoet = "1.14.2"
 material = "1.11.0"
-jetbrainsKotlinJvm = "1.9.21"
-ksp = "1.9.21-1.0.15"
+jetbrainsKotlinJvm = "1.9.23"
+ksp = "2.0.0-1.0.22"
 
 [libraries]
 kotlinter = { group = "org.jmailen.gradle", name = "kotlinter-gradle", version.ref = "kotlinter"}
