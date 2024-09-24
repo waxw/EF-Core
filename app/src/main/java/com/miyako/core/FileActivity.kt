@@ -1,10 +1,23 @@
 package com.miyako.core
 
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
+import android.provider.Settings
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.miyako.FileExt
 import com.miyako.core.databinding.ActivityFileBinding
+import java.io.BufferedReader
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.InputStreamReader
 
 class FileActivity : AppCompatActivity() {
 
@@ -27,6 +40,109 @@ class FileActivity : AppCompatActivity() {
       FileExt.externalFile1(this, null)
       FileExt.externalFile(this, Environment.DIRECTORY_MUSIC)
       FileExt.externalFile(this, "hahaha")
+    }
+
+    binding.btnPublic.setOnClickListener {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == -1) {
+          requestPermissions(
+            arrayOf(
+              android.Manifest.permission.READ_EXTERNAL_STORAGE,
+              android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ), 0
+          )
+          return@setOnClickListener
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          if (Environment.isExternalStorageManager().not()) {
+            startActivityForResult(
+              Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                .setData(Uri.parse("package:${this.packageName}")), 0
+            )
+            return@setOnClickListener
+          }
+        }
+      }
+      // FileExt.publicFile(null)
+      FileExt.publicFile(Environment.DIRECTORY_MUSIC)
+      FileExt.publicFile(Environment.DIRECTORY_DOWNLOADS)
+      FileExt.publicFile(Environment.DIRECTORY_DOCUMENTS)
+      FileExt.publicFile("testPublic")
+    }
+
+    val external = "external"
+    binding.btnMediaScan.setOnClickListener {
+      FileExt.mediaStore(this, MediaStore.Images.Media.EXTERNAL_CONTENT_URI, 10)
+      FileExt.mediaStore(this, MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, 10)
+      FileExt.mediaStore(this, MediaStore.Video.Media.EXTERNAL_CONTENT_URI, 10)
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        FileExt.mediaStore(this, MediaStore.Downloads.EXTERNAL_CONTENT_URI, 10)
+      }
+      FileExt.mediaStore(this, MediaStore.Files.getContentUri(external), 10)
+    }
+
+    binding.btnMediaReadImage.setOnClickListener {
+      val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+      // val file = FileExt.mediaStoreReadFile(this, uri, "DCIM/Screenshots", "Screenshot_20240517-164822_Weather.jpg")
+      val file = FileExt.mediaStoreReadFile(this, uri, "Documents", "mediaTxxxx.png")
+      "file: $file".debugLog()
+      binding.ivImage.setImageURI(file)
+    }
+
+    binding.btnMediaReadText.setOnClickListener {
+      val uri = MediaStore.Files.getContentUri(external)
+      FileExt.mediaStoreReadDir(this, uri, "MvVault")?.let {
+        "dir: ${it.path}".debugLog()
+      }
+      // FileExt.mediaStoreReadFile(this, uri, "Documents", "Ai_Life_Manage_0.0_2.0_2024_07_17_17_37_32.log")?.let {
+      //   BufferedReader(InputStreamReader(contentResolver.openInputStream(it))).use {
+      //     it.readLines().forEach {
+      //       "read: $it".debugLog()
+      //     }
+      //   }
+      // }
+
+      FileExt.mediaStoreReadFile(this, uri, "", "log.txt")?.let {
+        BufferedReader(InputStreamReader(contentResolver.openInputStream(it))).use {
+          it.readLines().forEach {
+            "read: $it".debugLog()
+          }
+        }
+      }
+    }
+
+    binding.btnMediaWrite.setOnClickListener {
+      val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        // MediaStore.Downloads.EXTERNAL_CONTENT_URI
+        MediaStore.Files.getContentUri(external)
+      } else {
+        MediaStore.Files.getContentUri(external)
+      }
+
+      val content = "Media Documents, Download11111".toByteArray(Charsets.UTF_8)
+
+      // val path = "media_write111"
+      val path = "Documents"
+      // val path = Environment.DIRECTORY_DOWNLOADS
+      // val fileName = "media_miyako1111.txt"
+      val fileName = "mediaTxxxx111222.png"
+
+      // val inputStream = ByteArrayInputStream(content)
+      val inputStream = Bitmap.createBitmap(200, 200, Bitmap.Config.RGB_565).let {
+        Canvas(it).run {
+          drawColor(Color.GRAY)
+        }
+        val output = ByteArrayOutputStream()
+        it.compress(Bitmap.CompressFormat.PNG, 100, output)
+        ByteArrayInputStream(output.toByteArray())
+      }
+
+      FileExt.mediaStoreWrite(
+        this,
+        uri,
+        path,
+        fileName,
+        inputStream
+      )
     }
   }
 }

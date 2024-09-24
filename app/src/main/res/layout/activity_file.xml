@@ -22,4 +22,44 @@
     android:gravity="center"
     android:text="私有外部存储路径" />
 
+  <Button
+    android:id="@+id/btnPublic"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="公共目录" />
+
+  <Button
+    android:id="@+id/btnMediaScan"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="MediaStore Scan" />
+
+  <Button
+    android:id="@+id/btnMediaReadImage"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="MediaStore Read Image" />
+
+  <Button
+    android:id="@+id/btnMediaReadText"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="MediaStore Read Text" />
+
+  <Button
+    android:id="@+id/btnMediaWrite"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="MediaStore Write" />
+
+  <ImageView
+    android:id="@+id/ivImage"
+    android:layout_width="match_parent"
+    android:layout_height="200dp"/>
+
 </LinearLayout>
