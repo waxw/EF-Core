@@ -12,6 +12,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.miyako.core.databinding.ActivityMainBinding
 import com.miyako.core.recycler.AdaptiveSpaceItemDecoration
+import com.miyako.core.recycler.EdgeSpace
+import com.miyako.core.recycler.EdgeSpaceItemDecoration
 import com.miyako.core.recycler.SpaceItemDecoration
 
 class MainActivity : AppCompatActivity() {
@@ -54,18 +56,24 @@ class MainActivity : AppCompatActivity() {
       // ItemDecoration 可叠加
       // addItemDecoration(SpaceItemDecoration(Rect(16.dp, 2.dp, 16.dp, 2.dp)))
       // addItemDecoration(SpaceItemDecoration(Rect(0, 4.dp, 0.dp, 4.dp), 10.dp))
-      addItemDecoration(AdaptiveSpaceItemDecoration(10.dp))
+      // addItemDecoration(AdaptiveSpaceItemDecoration(10.dp))
+      addItemDecoration(EdgeSpaceItemDecoration(EdgeSpace(10.dp)))
+      addItemDecoration(EdgeSpaceItemDecoration(EdgeSpace(10.dp, horizontal = 5.dp)))
     }
     binding.rvListHorizontal.run {
       layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
       adapter = StringAdapter(dateList)
       // addItemDecoration(SpaceItemDecoration(horizontal = 20.dp, vertical = 10.dp))
-      addItemDecoration(AdaptiveSpaceItemDecoration(10.dp))
+      // addItemDecoration(AdaptiveSpaceItemDecoration(10.dp))
+      addItemDecoration(EdgeSpaceItemDecoration(EdgeSpace(10.dp)))
     }
     binding.rvListGrid.run {
-      layoutManager = GridLayoutManager(context, 3)
+      layoutManager = GridLayoutManager(context, 3, LinearLayoutManager.HORIZONTAL,false)
       adapter = GridStringAdapter(dateList)
-      addItemDecoration(AdaptiveSpaceItemDecoration(10.dp, true))
+      // addItemDecoration(AdaptiveSpaceItemDecoration(10.dp, true))
+      // addItemDecoration(EdgeSpaceItemDecoration(EdgeSpace(10.dp, vertical = 2.dp)))
+      addItemDecoration(EdgeSpaceItemDecoration(EdgeSpace(10.dp, vertical = 10.dp)))
+      addItemDecoration(EdgeSpaceItemDecoration(EdgeSpace(25.dp, crossAxisSpace = 10.dp)))
     }
   }
 }
