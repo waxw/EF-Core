@@ -52,6 +52,26 @@ object FileExt {
     ) == PackageManager.PERMISSION_GRANTED
   }
 
+  val readStoragePermissions =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+      arrayOf(
+        Manifest.permission.READ_MEDIA_IMAGES,
+        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED
+      )
+    } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU)
+      arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+    else
+      arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+
+  fun Context.hasReadStoragePermission() =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && hasPermission(Manifest.permission.READ_MEDIA_IMAGES)) true
+    else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && hasPermission(Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED)) true
+    else if (hasPermission(Manifest.permission.READ_EXTERNAL_STORAGE)) true
+    else false
+
+  private fun Context.hasPermission(permission: String): Boolean =
+    ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
+
   fun checkWritePermission(context: Context): Boolean {
     return ContextCompat.checkSelfPermission(
       context,
@@ -304,10 +324,11 @@ object FileExt {
     }
     // 设置文件名称
     contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-    contentValues.put(MediaStore.MediaColumns.DATA, filePath)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
       // 设置文件路径
       contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, path)
+    } else {
+      contentValues.put(MediaStore.MediaColumns.DATA, filePath)
     }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
       contentValues.put(MediaStore.MediaColumns.IS_PENDING, 1)

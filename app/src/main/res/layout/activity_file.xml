@@ -57,6 +57,48 @@
     android:gravity="center"
     android:text="MediaStore Write" />
 
+  <Button
+    android:id="@+id/btnQueryImage"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="Query Image" />
+
+  <Button
+    android:id="@+id/btnSafGallery"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="SAF Gallery" />
+
+  <Button
+    android:id="@+id/btnSafVideo"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="SAF Video" />
+
+  <Button
+    android:id="@+id/btnSafText"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="SAF Text" />
+
+  <Button
+    android:id="@+id/btnPickSingle"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="Pick Single Media" />
+
+  <Button
+    android:id="@+id/btnPickMultiple"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="Pick Multiple Media" />
+
   <ImageView
     android:id="@+id/ivImage"
     android:layout_width="match_parent"

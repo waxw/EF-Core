@@ -6,6 +6,11 @@
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
   <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
 
+  <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+  <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
   <application
     android:allowBackup="true"
     android:dataExtractionRules="@xml/data_extraction_rules"
@@ -26,7 +31,8 @@
       </intent-filter>
     </activity>
 
-    <activity android:name=".FileActivity"
+    <activity
+      android:name=".FileActivity"
       android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
