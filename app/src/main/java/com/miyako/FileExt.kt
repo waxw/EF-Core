@@ -359,9 +359,11 @@ object FileExt {
           action?.invoke(insertUri)
           bos.flush()
           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            contentValues.clear()
             contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+            context.contentResolver.update(insertUri, contentValues, null, null)
           }
-          "mediaStoreWrite success: $uri".debugLog()
+          "mediaStoreWrite success: $insertUri".debugLog()
         }
       }
     }.onSuccess {

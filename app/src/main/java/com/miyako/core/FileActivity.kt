@@ -26,7 +26,7 @@ import java.io.InputStreamReader
 
 class FileActivity : AppCompatActivity() {
 
-  private val safResultLauncher: ActivityResultLauncher<Intent> =registerForActivityResult(
+  private val safResultLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
     ActivityResultContracts.StartActivityForResult()
   ) { result ->
     if (result.resultCode != RESULT_OK) return@registerForActivityResult
@@ -67,7 +67,15 @@ class FileActivity : AppCompatActivity() {
     }
 
     binding.btnPublic.setOnClickListener {
-      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+      if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        if (Environment.isExternalStorageManager().not()) {
+          startActivityForResult(
+            Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+              .setData(Uri.parse("package:${this.packageName}")), 0
+          )
+          return@setOnClickListener
+        }
+      } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) == -1) {
           requestPermissions(
             arrayOf(
@@ -76,14 +84,6 @@ class FileActivity : AppCompatActivity() {
             ), 0
           )
           return@setOnClickListener
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-          if (Environment.isExternalStorageManager().not()) {
-            startActivityForResult(
-              Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                .setData(Uri.parse("package:${this.packageName}")), 0
-            )
-            return@setOnClickListener
-          }
         }
       }
       // FileExt.publicFile(null)
@@ -114,7 +114,7 @@ class FileActivity : AppCompatActivity() {
 
     binding.btnMediaReadText.setOnClickListener {
       val uri = MediaStore.Files.getContentUri(external)
-      FileExt.mediaStoreReadDir(this, uri, "text.txt")?.let {
+      FileExt.mediaStoreReadDir(this, uri, "Documents")?.let {
         "dir: ${it.path}".debugLog()
       }
       // FileExt.mediaStoreReadFile(this, uri, "Documents", "Ai_Life_Manage_0.0_2.0_2024_07_17_17_37_32.log")?.let {
@@ -125,7 +125,7 @@ class FileActivity : AppCompatActivity() {
       //   }
       // }
 
-      FileExt.mediaStoreReadFile(this, uri, "", "log.txt")?.let {
+      FileExt.mediaStoreReadFile(this, uri, "", "text.txt")?.let {
         BufferedReader(InputStreamReader(contentResolver.openInputStream(it))).use {
           it.readLines().forEach {
             "read: $it".debugLog()
