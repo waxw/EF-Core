@@ -90,4 +90,50 @@ class BaseExtensionsUnitTest {
     Assert.assertFalse(result1)
     Assert.assertEquals(cnt1, 0)
   }
+
+  @Test
+  fun test_instance() {
+    val tmp = 233
+    var cnt = 0
+    tmp.instance<Int> {
+      cnt = 2
+    }
+    Assert.assertEquals(2, cnt)
+
+    tmp.instance<Double>({ cnt = 3 }) {
+      cnt = 4
+    }
+    Assert.assertNotEquals(4, cnt)
+
+    tmp.instance<Number> {
+      cnt = 5
+    }
+    Assert.assertEquals(5, cnt)
+
+    val result = tmp.instance<Int, Int>({ 22 }) { 33 }
+    Assert.assertEquals(33, result)
+  }
+
+  @Test
+  fun test_instance_null() {
+    val tmp: Int? = null
+    var cnt = 0
+    tmp.instance<Int> {
+      cnt = 2
+    }
+    Assert.assertEquals(0, cnt)
+
+    tmp.instance<Double>({ cnt = 3 }) {
+      cnt = 4
+    }
+    Assert.assertNotEquals(4, cnt)
+
+    tmp.instance<Number> {
+      cnt = 5
+    }
+    Assert.assertNotEquals(5, cnt)
+
+    val result = tmp.instance<Int, Int>({ 22 }) { 33 }
+    Assert.assertEquals(22, result)
+  }
 }
