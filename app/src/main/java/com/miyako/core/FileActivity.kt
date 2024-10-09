@@ -30,7 +30,17 @@ class FileActivity : AppCompatActivity() {
     ActivityResultContracts.StartActivityForResult()
   ) { result ->
     if (result.resultCode != RESULT_OK) return@registerForActivityResult
-    "SAF uri: ${result.data?.data}".debugLog()
+    val uri = result.data?.data
+    "SAF uri: $uri".debugLog()
+    if (uri.toString().contains("document")) {
+      BufferedReader(InputStreamReader(contentResolver.openInputStream(uri!!))).use {
+        it.readLines().forEach {
+          "read: $it".debugLog()
+        }
+      }
+    } else {
+      binding.ivImage.setImageURI(uri)
+    }
   }
 
   private val pickSingleMedia =
@@ -45,9 +55,11 @@ class FileActivity : AppCompatActivity() {
       }
     }
 
+  lateinit var binding: ActivityFileBinding
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    val binding = ActivityFileBinding.inflate(layoutInflater)
+    binding = ActivityFileBinding.inflate(layoutInflater)
     setContentView(binding.root)
 
     binding.btnPrivate.setOnClickListener {
