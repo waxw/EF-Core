@@ -63,8 +63,8 @@
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:gravity="center"
-        android:visibility="gone"
-        android:text="Uri 权限" />
+        android:text="Uri 权限"
+        android:visibility="gone" />
 
       <Button
         android:id="@+id/btnPublic"
@@ -123,27 +123,6 @@
         android:text="Query Image" />
 
       <Button
-        android:id="@+id/btnSafGallery"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:gravity="center"
-        android:text="SAF Gallery" />
-
-      <Button
-        android:id="@+id/btnSafVideo"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:gravity="center"
-        android:text="SAF Video" />
-
-      <Button
-        android:id="@+id/btnSafText"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:gravity="center"
-        android:text="SAF Text" />
-
-      <Button
         android:id="@+id/btnPickSingle"
         android:layout_width="match_parent"
         android:layout_height="44dp"
@@ -156,6 +135,55 @@
         android:layout_height="44dp"
         android:gravity="center"
         android:text="Pick Multiple Media" />
+
+      <Button
+        android:id="@+id/btnSafImage1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="SAF Gallery\n(ACTION_PICK)" />
+
+      <Button
+        android:id="@+id/btnSafImage2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="SAF Gallery\n(ACTION_GET_CONTENT)" />
+
+      <Button
+        android:id="@+id/btnSafImage3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="SAF Gallery\n(ACTION_OPEN_DOCUMENT)" />
+
+      <Button
+        android:id="@+id/btnSafImage4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="SAF Gallery\n(ACTION_OPEN_DOCUMENT_TREE)" />
+
+      <Button
+        android:id="@+id/btnSafImage5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="SAF Gallery\n(ACTION_CREATE_DOCUMENT)" />
+
+      <Button
+        android:id="@+id/delete_saf_file"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center"
+        android:text="删除 saf 中的文件" />
+
+      <Button
+        android:id="@+id/write_saf_file"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center"
+        android:text="saf write" />
 
       <ImageView
         android:id="@+id/ivImage"

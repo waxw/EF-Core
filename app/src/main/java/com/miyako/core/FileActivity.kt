@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.provider.Settings
 import androidx.activity.result.ActivityResultLauncher
@@ -15,6 +16,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.documentfile.provider.DocumentFile
 import com.miyako.FileExt
 import com.miyako.FileExt.hasReadStoragePermission
 import com.miyako.FileExt.readStoragePermissions
@@ -28,6 +30,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 class FileActivity : AppCompatActivity() {
+
+  var uri: Uri? = null
 
   private val safResultLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
     ActivityResultContracts.StartActivityForResult()
@@ -211,24 +215,6 @@ class FileActivity : AppCompatActivity() {
       }
     }
 
-    binding.btnSafGallery.setOnClickListener {
-      val intent = Intent(Intent.ACTION_GET_CONTENT)
-      intent.type = "image/*"
-      safResultLauncher.launch(intent)
-    }
-
-    binding.btnSafVideo.setOnClickListener {
-      val intent = Intent(Intent.ACTION_GET_CONTENT)
-      intent.type = "video/*"
-      safResultLauncher.launch(intent)
-    }
-
-    binding.btnSafText.setOnClickListener {
-      val intent = Intent(Intent.ACTION_GET_CONTENT)
-      intent.type = "text/*"
-      safResultLauncher.launch(intent)
-    }
-
     binding.btnPickSingle.setOnClickListener {
       pickSingleMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) // 包含图片和视频
 
@@ -242,6 +228,68 @@ class FileActivity : AppCompatActivity() {
 
     binding.btnPickMultiple.setOnClickListener {
       pickMultipleMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
+    binding.btnSafImage1.setOnClickListener {
+      val intent = Intent(Intent.ACTION_PICK)
+      intent.type = "image/*"
+      safResultLauncher.launch(intent)
+    }
+
+    binding.btnSafImage2.setOnClickListener {
+      val intent = Intent(Intent.ACTION_GET_CONTENT)
+      intent.type = "image/*"
+      safResultLauncher.launch(intent)
+    }
+
+    binding.btnSafImage3.setOnClickListener {
+      val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+        .addCategory(Intent.CATEGORY_OPENABLE)
+      intent.type = "image/*"
+      safResultLauncher.launch(intent)
+    }
+
+    binding.btnSafImage4.setOnClickListener {
+      val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE)
+      safResultLauncher.launch(intent)
+    }
+
+    binding.btnSafImage5.setOnClickListener {
+      val intent = Intent(Intent.ACTION_CREATE_DOCUMENT)
+        .addCategory(Intent.CATEGORY_OPENABLE)
+      intent.type = "text/*"
+      safResultLauncher.launch(intent)
+    }
+
+    binding.deleteSafFile.setOnClickListener {
+      uri?.let {
+        val delSuccess = DocumentsContract.deleteDocument(contentResolver, it)
+        "$it delete success $delSuccess".debugLog()
+      }
+    }
+
+    binding.writeSafFile.setOnClickListener {
+      uri?.let { uri->
+        DocumentFile.fromTreeUri(this, uri)
+          // 在文件夹内创建新文件夹
+          ?.createDirectory("test")
+          ?.apply {
+            // 在新文件夹内创建文件
+            val fileName = "${System.currentTimeMillis()}.txt"
+            createFile("text/plain", fileName)
+
+            // 通过文件名找到文件
+            findFile(fileName)?.uri?.let {
+              try {
+                // 在文件中写入内容
+                contentResolver.openOutputStream(it)?.write("hello world".toByteArray())
+                "$uri write success success".debugLog()
+              }catch (e:Exception){
+                e.printStackTrace()
+              }
+            }
+          }
+      }
     }
   }
 
