@@ -33,14 +33,15 @@ object FileExt {
   // }
 
   private fun createTestFile(parent: File, content: String) {
-    val file = File(parent, "test.txt")
+    val format = SimpleDateFormat("yyyy-MM-dd, hh:mm:ss").format(Date())
+    val file = File(parent, "$format.txt")
     "file: $file, exist: ${file.exists()}".debugLog()
     if (file.exists().not()) {
       val result = file.createNewFile()
       "create: $result".debugLog()
     }
     file.bufferedWriter().use {
-      it.write(SimpleDateFormat("yyyy-MM-dd, hh:mm:ss").format(Date()) + ", $content")
+      it.write("$format, $content")
       it.flush()
     }
   }
@@ -255,7 +256,6 @@ object FileExt {
       select to argList.toTypedArray()
     }
 
-    // context.grantUriPermission("com.android.providers.media", uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
     context.contentResolver.query(uri, projection, select, args, sortOrder).use { cursor ->
       if (cursor != null && cursor.moveToFirst()) {
         do {
@@ -339,6 +339,7 @@ object FileExt {
     }
 
     // ContentUri 表示操作哪个数据库, contentValues 表示要插入的数据内容
+    "insert before".debugLog()
     val insertUri = context.contentResolver.insert(uri, contentValues) ?: return false
     "insert: $insertUri".debugLog()
     return runCatching {

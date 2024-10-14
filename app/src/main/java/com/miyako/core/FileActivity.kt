@@ -22,7 +22,10 @@ import com.miyako.core.databinding.ActivityFileBinding
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import java.io.InputStreamReader
+import java.text.SimpleDateFormat
+import java.util.Date
 
 class FileActivity : AppCompatActivity() {
 
@@ -62,6 +65,14 @@ class FileActivity : AppCompatActivity() {
     binding = ActivityFileBinding.inflate(layoutInflater)
     setContentView(binding.root)
 
+    binding.assetsFileSwitch.setOnCheckedChangeListener { buttonView, isChecked ->
+      if (isChecked) {
+        binding.tvWriteFile.text = "write assets file"
+      } else {
+        binding.tvWriteFile.text = "write txt"
+      }
+    }
+
     binding.btnPrivate.setOnClickListener {
       FileExt.privetFile(this)
       FileExt.privetFile1(this)
@@ -76,6 +87,12 @@ class FileActivity : AppCompatActivity() {
       FileExt.externalFile1(this, null)
       FileExt.externalFile(this, Environment.DIRECTORY_MUSIC)
       FileExt.externalFile(this, "hahaha")
+    }
+
+    binding.btnGrantUri.setOnClickListener {
+      val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+      val pkg = "com.android.providers.media"
+      grantUriPermission(pkg, uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
 
     binding.btnPublic.setOnClickListener {
@@ -119,25 +136,24 @@ class FileActivity : AppCompatActivity() {
     binding.btnMediaReadImage.setOnClickListener {
       val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
       // val file = FileExt.mediaStoreReadFile(this, uri, "DCIM/Screenshots", "Screenshot_20240517-164822_Weather.jpg")
-      val file = FileExt.mediaStoreReadFile(this, uri, "", "image.png")
+      val input = getTargetFile()
+      val file = FileExt.mediaStoreReadFile(this, uri, input.first, input.second)
       "file: $file".debugLog()
       binding.ivImage.setImageURI(file)
     }
 
-    binding.btnMediaReadText.setOnClickListener {
+    binding.btnMediaReadDir.setOnClickListener {
       val uri = MediaStore.Files.getContentUri(external)
-      FileExt.mediaStoreReadDir(this, uri, "Documents")?.let {
+      val input = getTargetFile()
+      FileExt.mediaStoreReadDir(this, uri, input.first)?.let {
         "dir: ${it.path}".debugLog()
       }
-      // FileExt.mediaStoreReadFile(this, uri, "Documents", "Ai_Life_Manage_0.0_2.0_2024_07_17_17_37_32.log")?.let {
-      //   BufferedReader(InputStreamReader(contentResolver.openInputStream(it))).use {
-      //     it.readLines().forEach {
-      //       "read: $it".debugLog()
-      //     }
-      //   }
-      // }
+    }
 
-      FileExt.mediaStoreReadFile(this, uri, "", "text.txt")?.let {
+    binding.btnMediaReadText.setOnClickListener {
+      val uri = MediaStore.Files.getContentUri(external)
+      val input = getTargetFile()
+      FileExt.mediaStoreReadFile(this, uri, input.first, input.second)?.let {
         BufferedReader(InputStreamReader(contentResolver.openInputStream(it))).use {
           it.readLines().forEach {
             "read: $it".debugLog()
@@ -147,22 +163,23 @@ class FileActivity : AppCompatActivity() {
     }
 
     binding.btnMediaWrite.setOnClickListener {
-      val uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        // MediaStore.Downloads.EXTERNAL_CONTENT_URI
-        MediaStore.Files.getContentUri(external)
-      } else {
-        MediaStore.Files.getContentUri(external)
-      }
+      val uri = MediaStore.Files.getContentUri(external)
+      val target = getTargetFile()
+      val inputStream = getWriteFile()
+      FileExt.mediaStoreWrite(
+        this,
+        uri,
+        target.first,
+        inputStream.first,
+        inputStream.second
+      )
+    }
 
-      val content = "Media Documents, Download11111".toByteArray(Charsets.UTF_8)
+    binding.btnMediaWriteImage.setOnClickListener {
+      val uri = MediaStore.Files.getContentUri(external)
 
-      // val path = "media_write111"
-      val path = "Documents"
-      // val path = Environment.DIRECTORY_DOWNLOADS
-      // val fileName = "media_miyako1111.txt"
-      val fileName = "mediaTxxxx111222.png"
+      val target = getTargetFile()
 
-      // val inputStream = ByteArrayInputStream(content)
       val inputStream = Bitmap.createBitmap(200, 200, Bitmap.Config.RGB_565).let {
         Canvas(it).run {
           drawColor(Color.GRAY)
@@ -175,8 +192,8 @@ class FileActivity : AppCompatActivity() {
       FileExt.mediaStoreWrite(
         this,
         uri,
-        path,
-        fileName,
+        target.first,
+        target.second,
         inputStream
       )
     }
@@ -225,5 +242,37 @@ class FileActivity : AppCompatActivity() {
     binding.btnPickMultiple.setOnClickListener {
       pickMultipleMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
+  }
+
+  fun getWriteFile(): Pair<String, InputStream> {
+    return if (binding.assetsFileSwitch.isChecked) {
+      "Weather.pdf" to readWeatherPdf()
+    } else {
+      val date = SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS").format(Date())
+      "$date.txt" to ByteArrayInputStream(("$date---text file").toByteArray())
+    }
+  }
+
+  fun getTargetFile(): Pair<String, String> {
+    val text = binding.etTarget.text?.trim() ?: ""
+    if (text.endsWith("/")) return text.toString() to ""
+    val idx = text.lastIndexOf("/")
+    return if (idx != -1) {
+      text.substring(0, idx) to text.substring(idx + 1)
+    } else if (text.contains(".")) "" to text.toString()
+    else text.toString() to ""
+  }
+
+  fun readWeatherPdf(): InputStream {
+    return assets.open("Weather.pdf")
+  }
+
+  override fun onRequestPermissionsResult(
+    requestCode: Int,
+    permissions: Array<out String>,
+    grantResults: IntArray
+  ) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    "code: $requestCode, $grantResults".debugLog()
   }
 }
