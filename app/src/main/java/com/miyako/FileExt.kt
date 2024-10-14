@@ -324,7 +324,7 @@ object FileExt {
     }
     // 设置文件名称
     contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
       // 设置文件路径
       contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, path)
     } else {
