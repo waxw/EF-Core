@@ -166,13 +166,14 @@ class FileActivity : AppCompatActivity() {
       val uri = MediaStore.Files.getContentUri(external)
       val target = getTargetFile()
       val inputStream = getWriteFile()
-      FileExt.mediaStoreWrite(
-        this,
-        uri,
-        target.first,
-        inputStream.first,
-        inputStream.second
-      )
+      // FileExt.mediaStoreWrite(
+      //   this,
+      //   uri,
+      //   target.first,
+      //   inputStream.first,
+      //   inputStream.second
+      // )
+      FileExt.writeFile(target.first, inputStream.first, inputStream.second)
     }
 
     binding.btnMediaWriteImage.setOnClickListener {

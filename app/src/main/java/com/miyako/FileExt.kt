@@ -296,6 +296,40 @@ object FileExt {
   }
 
   /**
+   * 通过 File IO API 创建文件，需要权限，Android 10 及以上无效
+   */
+  fun writeFile(
+    path: String,
+    fileName: String,
+    inputStream: InputStream,
+    action: ((File) -> Unit)? = null
+  ) {
+    "fileWrite: $path/$fileName".debugLog()
+    val filePath = "${Environment.getExternalStorageDirectory().path}/$path/$fileName"
+    "new file: $filePath".debugLog()
+    val file = File(filePath)
+    if (file.parentFile?.exists() != true) {
+      file.parentFile?.mkdirs()
+    }
+    if (file.exists().not()) {
+      file.createNewFile()
+    }
+    val bos = BufferedOutputStream(file.outputStream())
+    inputStream.use { istream ->
+      bos.use { bos ->
+        val buff = ByteArray(1024)
+        var count: Int
+        while (istream.read(buff).apply { count = this } != -1) {
+          bos.write(buff, 0, count)
+        }
+        bos.flush()
+        "file write success".debugLog()
+      }
+    }
+    action?.invoke(file)
+  }
+
+  /**
    *
    * 通过 MediaStore 创建文件，插入后需要触发 MediaStore 的扫描才能重新再 MediaStore 中查询到结果
    *
