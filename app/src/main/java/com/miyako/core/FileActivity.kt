@@ -1,5 +1,6 @@
 package com.miyako.core
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -24,6 +25,7 @@ import com.miyako.core.databinding.ActivityFileBinding
 import java.io.BufferedReader
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
@@ -31,20 +33,22 @@ import java.util.Date
 
 class FileActivity : AppCompatActivity() {
 
-  var uri: Uri? = null
+  private var uri: Uri? = null
+  private val uriList = mutableListOf<Uri>()
+  private val maxCount = 5
 
   private val safResultLauncher: ActivityResultLauncher<Intent> = registerForActivityResult(
     ActivityResultContracts.StartActivityForResult()
   ) { result ->
     if (result.resultCode != RESULT_OK) return@registerForActivityResult
-    val uri = result.data?.data
+    uri = result.data?.data
     "SAF uri: $uri".debugLog()
     if (uri.toString().contains("document")) {
-      BufferedReader(InputStreamReader(contentResolver.openInputStream(uri!!))).use {
-        it.readLines().forEach {
-          "read: $it".debugLog()
-        }
-      }
+      // BufferedReader(InputStreamReader(contentResolver.openInputStream(uri!!))).use {
+      //   it.readLines().forEach {
+      //     "read: $it".debugLog()
+      //   }
+      // }
     } else {
       binding.ivImage.setImageURI(uri)
     }
@@ -55,11 +59,25 @@ class FileActivity : AppCompatActivity() {
       "Single Pick uri: $uri".debugLog()
     }
 
-  private val pickMultipleMedia =
-    registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(5)) { uris: List<Uri> ->
-      uris.forEach { uri ->
-        "Multiple Pick uri: $uri".debugLog()
+  // maxCount 设置 为1 时会报错， "Max items must be higher than 1"
+  private val pickMultipleMedia1 =
+    registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(maxCount)) { uris: List<Uri> ->
+      uris.forEach { uri -> "Multiple Pick uri: $uri".debugLog() }
+    }
+
+  private val myPickMultipleVisualMedia = MyPickMultipleVisualMedia(maxCount)
+  private val pickMultipleMedia2 = registerForActivityResult(myPickMultipleVisualMedia) { uris: List<Uri> ->
+    uriList.addAll(uris)
+    binding.pickMultipleHint.text = (maxCount - uriList.size).toString()
+    uris.forEach { uri -> "Multiple Pick uri: $uri".debugLog() }
+  }
+  private val pickSingleMedia2 =
+    registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+      uri?.let {
+        uriList.add(it)
+        binding.pickMultipleHint.text = (maxCount - uriList.size).toString()
       }
+      "Single Pick uri: $uri".debugLog()
     }
 
   lateinit var binding: ActivityFileBinding
@@ -100,6 +118,8 @@ class FileActivity : AppCompatActivity() {
     }
 
     binding.btnPublic.setOnClickListener {
+      "read: ${ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE)}".debugLog()
+      "write: ${ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE)}".debugLog()
       if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         if (Environment.isExternalStorageManager().not()) {
           startActivityForResult(
@@ -120,10 +140,48 @@ class FileActivity : AppCompatActivity() {
         }
       }
       // FileExt.publicFile(null)
-      FileExt.publicFile(Environment.DIRECTORY_MUSIC)
-      FileExt.publicFile(Environment.DIRECTORY_DOWNLOADS)
-      FileExt.publicFile(Environment.DIRECTORY_DOCUMENTS)
-      FileExt.publicFile("testPublic")
+      // FileExt.publicFile(Environment.DIRECTORY_MUSIC)
+      // FileExt.publicFile(Environment.DIRECTORY_DOWNLOADS)
+      // FileExt.publicFile(Environment.DIRECTORY_DOCUMENTS)
+      // FileExt.publicFile("testPublic")
+      val root = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_NOTIFICATIONS)
+      "root: ${root.canRead()}, ${root.canWrite()}, ${root.absolutePath}".debugLog()
+      root.listFiles()?.forEach {
+        "child: $it, ${it.canRead()}, ${it.canWrite()}".debugLog()
+        if (it.isFile) {
+          BufferedReader(InputStreamReader(it.inputStream())).use {
+            it.readLines().forEach {
+              // "read: $it".debugLog()
+            }
+          }
+        }
+      }
+      File(root, "sss.txt").createNewFile()
+      //   root.listFiles().forEach {
+      //   "read file: ${it.absolutePath}, ${it.canWrite()}".debugLog()
+      // }
+    }
+
+    binding.btnPath.setOnClickListener {
+      catch {
+        val file = getWriteFile()
+        FileExt.writeFile("", file.first, file.second)
+      }
+      catch {
+        val file = getWriteFile()
+        FileExt.writeFile(Environment.DIRECTORY_DOCUMENTS, file.first, file.second)
+      }
+      catch {
+        val file = getWriteFile()
+        FileExt.writeFile("custom", file.first, file.second)
+      }
+
+      catch {
+        val target = getTargetFile()
+        FileExt.readFile(target.first, target.second) {
+          readFile(it)
+        }
+      }
     }
 
     val external = "external"
@@ -137,70 +195,83 @@ class FileActivity : AppCompatActivity() {
       FileExt.mediaStore(this, MediaStore.Files.getContentUri(external), 10)
     }
 
-    binding.btnMediaReadImage.setOnClickListener {
-      val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
-      // val file = FileExt.mediaStoreReadFile(this, uri, "DCIM/Screenshots", "Screenshot_20240517-164822_Weather.jpg")
-      val input = getTargetFile()
-      val file = FileExt.mediaStoreReadFile(this, uri, input.first, input.second)
-      "file: $file".debugLog()
-      binding.ivImage.setImageURI(file)
-    }
-
-    binding.btnMediaReadDir.setOnClickListener {
-      val uri = MediaStore.Files.getContentUri(external)
-      val input = getTargetFile()
-      FileExt.mediaStoreReadDir(this, uri, input.first)?.let {
-        "dir: ${it.path}".debugLog()
-      }
-    }
-
-    binding.btnMediaReadText.setOnClickListener {
-      val uri = MediaStore.Files.getContentUri(external)
-      val input = getTargetFile()
-      FileExt.mediaStoreReadFile(this, uri, input.first, input.second)?.let {
-        BufferedReader(InputStreamReader(contentResolver.openInputStream(it))).use {
-          it.readLines().forEach {
-            "read: $it".debugLog()
+    binding.btnMediaRead.setOnClickListener {
+      catch {
+        val uri = MediaStore.Files.getContentUri(external)
+        val input = getTargetFile()
+        FileExt.mediaStoreReadFile(this, uri, input.first, input.second)?.let {
+          BufferedReader(InputStreamReader(contentResolver.openInputStream(it))).use {
+            it.readLines().forEach {
+              "read: $it".debugLog()
+            }
           }
         }
+      }
+
+      catch {
+        val uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        val input = getTargetFile()
+        val file = FileExt.mediaStoreReadFile(this, uri, input.first, input.second)
+        "image: $file".debugLog()
+        binding.ivImage.setImageURI(file)
       }
     }
 
     binding.btnMediaWrite.setOnClickListener {
-      val uri = MediaStore.Files.getContentUri(external)
-      val target = getTargetFile()
-      val inputStream = getWriteFile()
-      // FileExt.mediaStoreWrite(
-      //   this,
-      //   uri,
-      //   target.first,
-      //   inputStream.first,
-      //   inputStream.second
-      // )
-      FileExt.writeFile(target.first, inputStream.first, inputStream.second)
-    }
-
-    binding.btnMediaWriteImage.setOnClickListener {
-      val uri = MediaStore.Files.getContentUri(external)
-
-      val target = getTargetFile()
-
-      val inputStream = Bitmap.createBitmap(200, 200, Bitmap.Config.RGB_565).let {
-        Canvas(it).run {
-          drawColor(Color.GRAY)
-        }
-        val output = ByteArrayOutputStream()
-        it.compress(Bitmap.CompressFormat.PNG, 100, output)
-        ByteArrayInputStream(output.toByteArray())
+      catch {
+        val target = getTargetFile()
+        val inputStream = getWriteFile()
+        FileExt.mediaStoreWrite(
+          this,
+          MediaStore.Files.getContentUri(external),
+          target.first,
+          inputStream.first,
+          inputStream.second
+        )
       }
 
-      FileExt.mediaStoreWrite(
-        this,
-        uri,
-        target.first,
-        target.second,
-        inputStream
-      )
+      catch {
+        val inputStream = getWriteFile()
+        FileExt.mediaStoreWrite(
+          this,
+          MediaStore.Files.getContentUri(external),
+          Environment.DIRECTORY_DCIM,
+          inputStream.first,
+          inputStream.second
+        )
+      }
+
+      catch {
+        val target = getTargetFile()
+        val inputStream = getWriteFile()
+        FileExt.mediaStoreWrite(
+          this,
+          MediaStore.Files.getContentUri(external),
+          target.first,
+          inputStream.first,
+          inputStream.second
+        )
+      }
+
+      catch {
+        val target = getTargetFile()
+        val inputStream = Bitmap.createBitmap(200, 200, Bitmap.Config.RGB_565).let {
+          Canvas(it).run {
+            drawColor(Color.GRAY)
+          }
+          val output = ByteArrayOutputStream()
+          it.compress(Bitmap.CompressFormat.PNG, 100, output)
+          ByteArrayInputStream(output.toByteArray())
+        }
+
+        FileExt.mediaStoreWrite(
+          this,
+          MediaStore.Files.getContentUri(external),
+          target.first,
+          "gray.png",
+          inputStream
+        )
+      }
     }
 
     binding.btnQueryImage.setOnClickListener {
@@ -226,8 +297,19 @@ class FileActivity : AppCompatActivity() {
 //      singlePickMedia.launch(PickVisualMediaRequest(PickVisualMedia.SingleMimeType(mimeType))) //筛选固定类型的媒体文件
     }
 
-    binding.btnPickMultiple.setOnClickListener {
-      pickMultipleMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    binding.btnPickMultiple1.setOnClickListener {
+      pickMultipleMedia1.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
+    binding.btnPickMultiple2.setOnClickListener {
+      val count = maxCount - uriList.size
+      if (count == 0) return@setOnClickListener
+      // 要想使用 PickMultipleVisualMedia，设置的 maxItems 必须要大于1
+      if (count > 1) {
+        myPickMultipleVisualMedia.setMaxItems(count)
+        pickMultipleMedia2.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+      } else
+        pickSingleMedia2.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
     binding.btnSafImage1.setOnClickListener {
@@ -269,7 +351,7 @@ class FileActivity : AppCompatActivity() {
     }
 
     binding.writeSafFile.setOnClickListener {
-      uri?.let { uri->
+      uri?.let { uri ->
         DocumentFile.fromTreeUri(this, uri)
           // 在文件夹内创建新文件夹
           ?.createDirectory("test")
@@ -284,7 +366,7 @@ class FileActivity : AppCompatActivity() {
                 // 在文件中写入内容
                 contentResolver.openOutputStream(it)?.write("hello world".toByteArray())
                 "$uri write success success".debugLog()
-              }catch (e:Exception){
+              } catch (e: Exception) {
                 e.printStackTrace()
               }
             }
@@ -324,4 +406,37 @@ class FileActivity : AppCompatActivity() {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     "code: $requestCode, $grantResults".debugLog()
   }
+
+  fun catch(action: () -> Unit) {
+    runCatching(action).onFailure {
+      "catch: $it".debugLog()
+    }
+  }
+
+  fun readFile(file: File?) {
+    catch {
+      BufferedReader(InputStreamReader(file!!.inputStream())).use {
+        it.readLines().forEach {
+          "read: $it".debugLog()
+        }
+      }
+    }
+  }
+
+  open class MyPickMultipleVisualMedia(
+    private var maxItems: Int
+  ) : ActivityResultContracts.PickMultipleVisualMedia(maxItems) {
+
+    override fun createIntent(context: Context, input: PickVisualMediaRequest): Intent {
+      val intent = super.createIntent(context, input)
+      intent.putExtra("com.google.android.gms.provider.extra.PICK_IMAGES_MAX", maxItems)
+        .putExtra("android.provider.extra.PICK_IMAGES_MAX", maxItems)
+      return intent
+    }
+
+    fun setMaxItems(count: Int) {
+      maxItems = count
+    }
+  }
+
 }

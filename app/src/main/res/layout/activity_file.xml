@@ -74,6 +74,13 @@
         android:text="公共目录" />
 
       <Button
+        android:id="@+id/btnPath"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:gravity="center"
+        android:text="Path 操作" />
+
+      <Button
         android:id="@+id/btnMediaScan"
         android:layout_width="match_parent"
         android:layout_height="44dp"
@@ -81,25 +88,11 @@
         android:text="MediaStore Scan" />
 
       <Button
-        android:id="@+id/btnMediaReadImage"
+        android:id="@+id/btnMediaRead"
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:gravity="center"
-        android:text="MediaStore Read Image" />
-
-      <Button
-        android:id="@+id/btnMediaReadDir"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:gravity="center"
-        android:text="MediaStore Read Dir" />
-
-      <Button
-        android:id="@+id/btnMediaReadText"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:gravity="center"
-        android:text="MediaStore Read Text" />
+        android:text="MediaStore Read" />
 
       <Button
         android:id="@+id/btnMediaWrite"
@@ -107,13 +100,6 @@
         android:layout_height="44dp"
         android:gravity="center"
         android:text="MediaStore Write" />
-
-      <Button
-        android:id="@+id/btnMediaWriteImage"
-        android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:gravity="center"
-        android:text="MediaStore Write Image" />
 
       <Button
         android:id="@+id/btnQueryImage"
@@ -130,16 +116,41 @@
         android:text="Pick Single Media" />
 
       <Button
-        android:id="@+id/btnPickMultiple"
+        android:id="@+id/btnPickMultiple1"
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:gravity="center"
         android:text="Pick Multiple Media" />
 
       <Button
+        android:id="@+id/btnPickMultiple2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:text="Pick Multiple Media(动态修改最大图片张数)" />
+
+      <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="最多可再选择图片的张数：" />
+
+        <TextView
+          android:id="@+id/pickMultipleHint"
+          android:layout_width="wrap_content"
+          android:layout_height="wrap_content"
+          android:text="5"/>
+      </LinearLayout>
+
+      <Button
         android:id="@+id/btnSafImage1"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
         android:gravity="center"
         android:text="SAF Gallery\n(ACTION_PICK)" />
 

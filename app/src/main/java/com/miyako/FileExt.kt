@@ -295,6 +295,10 @@ object FileExt {
     return result
   }
 
+  fun getFinalPath(path: String, fileName: String): String {
+    return "${Environment.getExternalStorageDirectory().path}${if (path.isNotEmpty()) "/$path" else ""}/$fileName"
+  }
+
   /**
    * 通过 File IO API 创建文件，需要权限，Android 10 及以上无效
    */
@@ -305,7 +309,8 @@ object FileExt {
     action: ((File) -> Unit)? = null
   ) {
     "fileWrite: $path/$fileName".debugLog()
-    val filePath = "${Environment.getExternalStorageDirectory().path}/$path/$fileName"
+    val filePath = getFinalPath(path, fileName)
+
     "new file: $filePath".debugLog()
     val file = File(filePath)
     if (file.parentFile?.exists() != true) {
@@ -330,6 +335,28 @@ object FileExt {
   }
 
   /**
+   * 通过 File IO API 访问文件，需要权限，Android 10 及以上无效
+   */
+  fun readFile(
+    path: String,
+    fileName: String,
+    action: ((File?) -> Unit)? = null
+  ) {
+    "fileRead: $path/$fileName".debugLog()
+    val filePath = getFinalPath(path, fileName)
+    val file = File(filePath)
+    "read file: ${file.absolutePath}, ${file.canRead()}, ${file.canWrite()}, ${file.canExecute()}".debugLog()
+    if (file.parentFile?.exists() != true) {
+      file.parentFile?.mkdirs()
+    }
+    if (file.exists().not()) {
+      "file not exists".debugLog()
+    } else {
+      action?.invoke(file)
+    }
+  }
+
+  /**
    *
    * 通过 MediaStore 创建文件，插入后需要触发 MediaStore 的扫描才能重新再 MediaStore 中查询到结果
    *
@@ -350,7 +377,7 @@ object FileExt {
     action: ((Uri) -> Unit)? = null
   ): Boolean {
     "mediaStoreWrite: $uri, $path/$fileName".debugLog()
-    val filePath = "${Environment.getExternalStorageDirectory().path}/$path/$fileName"
+    val filePath = getFinalPath(path, fileName)
     "new file: $filePath".debugLog()
     val file = File(filePath)
     if (file.parentFile?.exists() != true) {
