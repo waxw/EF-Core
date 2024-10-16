@@ -41,6 +41,14 @@ inline fun <T> T?.withNotNull(block: (T) -> Unit): Boolean {
   return this != null
 }
 
+inline fun <reified T> Any?.instance(onNotMatch: (Any?) -> Unit = {}, onMatch: (T) -> Unit) {
+  if (this is T) onMatch(this) else onNotMatch(this)
+}
+
+inline fun <reified T, R> Any?.instance(onNotMatch: (Any?) -> R, onMatch: (T) -> R): R {
+  return if (this is T) onMatch(this) else onNotMatch(this)
+}
+
 fun <T> unsafeLazy(initializer: () -> T): Lazy<T> = lazy(LazyThreadSafetyMode.NONE, initializer)
 
 val Any.hex: String
