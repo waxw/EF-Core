@@ -5,12 +5,15 @@ import android.graphics.Color
 import android.os.Bundle
 import android.text.SpannableString
 import android.util.Log
+import android.widget.Button
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.miyako.core.databinding.ActivityMainBinding
+import com.miyako.core.rv.ScaffoldBody
 import kotlinx.coroutines.delay
 
 class MainActivity : AppCompatActivity() {
@@ -54,13 +57,13 @@ class MainActivity : AppCompatActivity() {
 
       }
 
-    binding.btnChangeChinese.setOnClickListener {
-      val s = measureExecuteNano("ns") {
-        setLanguage("zh,CN")
-        // return@setOnClickListener
-        return@measureExecuteNano
-      }
-    }
+    // binding.btnChangeChinese.setOnClickListener {
+    //   val s = measureExecuteNano("ns") {
+    //     setLanguage("zh,CN")
+    //     // return@setOnClickListener
+    //     return@measureExecuteNano
+    //   }
+    // }
 
     binding.btnChangeDefault.setOnClickListener {
       lifecycleScope.launchDefault {
@@ -81,6 +84,45 @@ class MainActivity : AppCompatActivity() {
         Log.d("miyako", "res: $s")
       }
     }
+
+    val dataList = mutableListOf<String>()
+
+    repeat(50) {
+      dataList.add("item: $it")
+    }
+
+    binding.rvList.adapter = RvAdapter(dataList)
+    binding.rvList.layoutManager = LinearLayoutManager(this)
+
+    var gone = false
+
+    val buttonScaffold = object : ScaffoldBody<Button>(binding.btnChangeChinese) {
+      override val onEnable = {
+        gone.not().apply {
+          "gone: $gone".debugLog()
+        }
+      }
+      override val onBind = { button: Button ->
+        button.setOnClickListener {
+          binding.tvTitle.text = "Scaffold Body"
+        }
+      }
+    }
+
+    val goneScaffold = object : ScaffoldBody<Button>(binding.btnChangeDefault) {
+      override val onBind = { button: Button ->
+        button.setOnClickListener {
+          gone = true
+          buttonScaffold.adapter.notifyDataSetChanged()
+          // binding.scaffold.refresh()
+        }
+      }
+    }
+
+    binding.scaffold.addScaffoldBody(buttonScaffold)
+    binding.scaffold.addScaffoldBody(goneScaffold)
+
+    binding.scaffold.reInflate()
   }
 
   private var cnt = 0
