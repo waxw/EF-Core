@@ -6,12 +6,16 @@ import android.os.Bundle
 import android.text.SpannableString
 import android.util.Log
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.miyako.core.databinding.ActivityMainBinding
+import com.miyako.data.DataState
+import com.miyako.demo.DemoViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -81,6 +85,27 @@ class MainActivity : AppCompatActivity() {
         Log.d("miyako", "res: $s")
       }
     }
+
+    binding.btnLoadData.setOnClickListener {
+      demoViewModel.loadData()
+    }
+    lifecycleScope.launch {
+      demoViewModel.dataFactory.collect {
+        when (it) {
+          is DataState.Initial -> {
+            "dataLoader: initial".debugLog()
+          }
+
+          is DataState.Loading -> {
+            "dataLoader: loading".debugLog()
+          }
+
+          else -> {
+            "dataLoader: $it".debugLog()
+          }
+        }
+      }
+    }
   }
 
   private var cnt = 0
@@ -92,4 +117,6 @@ class MainActivity : AppCompatActivity() {
     sp.edit().putString("set_language", code).commit()
     recreate()
   }
+
+  private val demoViewModel: DemoViewModel by viewModels()
 }

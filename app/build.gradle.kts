@@ -2,6 +2,7 @@ plugins {
   alias(libs.plugins.androidApplication)
   alias(libs.plugins.jetbrainsKotlinAndroid)
   alias(libs.plugins.ksp)
+  alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -60,7 +61,15 @@ dependencies {
 
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)
+  implementation(libs.androidx.activity.ktx)
+  implementation(libs.androidx.lifecycle.viewmodel.ktx)
   implementation(libs.material)
+
+  implementation(libs.okhttp.logging)
+  implementation(libs.retrofit)
+  implementation(libs.retrofit.converter.kotlinx.serialization)
+  implementation(libs.kotlin.serlization.json)
+
   testImplementation(libs.junit)
   androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.espresso.core)

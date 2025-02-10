@@ -1,14 +1,19 @@
-package com.miyako.core
+package com.miyako.demo
 
+import androidx.lifecycle.viewModelScope
+import com.miyako.core.debugLog
 import com.miyako.core.ksp.mvi.Action
 import com.miyako.core.ksp.mvi.DelegateDispatch
 import com.miyako.core.ksp.mvi.DispatchAction
 import com.miyako.core.ksp.mvi.Dispatcher
 import com.miyako.core.ksp.mvi.defReturn
+import com.miyako.data.DataFactory
 import com.miyako.mvi.MviViewModel
 import com.miyako.mvi.UiAction
 import com.miyako.mvi.UiEffect
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 @DelegateDispatch
 class DemoViewModel : MviViewModel<DemoViewModel.UiState, UiEffect, UiAction>() {
@@ -57,5 +62,14 @@ class DemoViewModel : MviViewModel<DemoViewModel.UiState, UiEffect, UiAction>() 
 
   @Action
   fun clickSettings(action: UiAction.Item) {
+  }
+
+  val dataFactory = DataFactory.create<NetResult<ArticlePageDto>>()
+  private val netRepository = NetRepository()
+
+  fun loadData() {
+    viewModelScope.launch(Dispatchers.IO) {
+      dataFactory.load(delay = 1000, netRepository::requestArticles)
+    }
   }
 }
