@@ -41,4 +41,11 @@
     android:gravity="center"
     android:text="English" />
 
+  <Button
+    android:id="@+id/btnLoadData"
+    android:layout_width="match_parent"
+    android:layout_height="44dp"
+    android:gravity="center"
+    android:text="Load Data" />
+
 </LinearLayout>
