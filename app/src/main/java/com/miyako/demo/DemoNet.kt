@@ -41,12 +41,12 @@ class NetRepository : DataRepository() {
 
   suspend fun requestArticles(): DataState<NetResult<ArticlePageDto>> {
     "requestArticles".debugLog()
-    return request(suspend {
+    return requestData {
       val service = retrofit.create(INetService::class.java)
       service.getArticle(0, 10).apply {
         "get size: ${this.data.size}".debugLog()
       }
-    })
+    }
   }
 }
 
