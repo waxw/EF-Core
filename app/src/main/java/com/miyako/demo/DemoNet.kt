@@ -39,16 +39,7 @@ class NetRepository : DataRepository() {
       .connectTimeout(30, TimeUnit.SECONDS)
       .readTimeout(30, TimeUnit.SECONDS)
       .writeTimeout(30, TimeUnit.SECONDS)
-      .addInterceptor { chain ->
-        val request = chain.request().newBuilder()
-          .addHeader("Content-Type", "application/json")
-          .addHeader("nickname", "miyako")
-          .build()
-        "api1: ${request.url}".debugLog("Retrofit")
-        return@addInterceptor chain.proceed(request).apply {
-          "response: $code, ${request.url}".debugLog("Retrofit")
-        }
-      }.addInterceptor(HttpLoggingInterceptor(logger).apply {
+      .addInterceptor(HttpLoggingInterceptor(logger).apply {
         level = HttpLoggingInterceptor.Level.BODY
       })
       .build()
@@ -61,7 +52,7 @@ class NetRepository : DataRepository() {
   }
 
   suspend fun login() {
-    request {
+    requestData {
       "login".debugLog()
       val user = User("miyako", "123456").toMap()
 
@@ -73,12 +64,12 @@ class NetRepository : DataRepository() {
 
   suspend fun requestArticles(): DataState<NetResult<ArticlePageDto>> {
     "requestArticles".debugLog()
-    return request(suspend {
+    return requestData {
       val service = retrofit.create(INetService::class.java)
       service.getArticle(0, 10).apply {
         "get size: ${this.data.size}".debugLog()
       }
-    })
+    }
   }
 }
 

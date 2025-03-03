@@ -38,7 +38,7 @@ class DataFactory<T>(
 
 abstract class DataRepository {
 
-  suspend fun <T> request(
+  suspend fun <T> requestData(
     block: suspend () -> T
   ): DataState<T> {
     return try {
