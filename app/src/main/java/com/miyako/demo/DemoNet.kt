@@ -1,23 +1,35 @@
 package com.miyako.demo
 
+import com.miyako.core.debug
 import com.miyako.core.debugLog
 import com.miyako.data.DataRepository
 import com.miyako.data.DataState
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.modules.SerializersModule
+import kotlinx.serialization.modules.contextual
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 import java.util.concurrent.TimeUnit
 
 class NetRepository : DataRepository() {
-  val networkJson = Json { ignoreUnknownKeys = true }
+  val networkJson = Json {
+    ignoreUnknownKeys = true
+    serializersModule = SerializersModule {
+      contextual(AnySerializer)
+    }
+  }
 
   val retrofit by lazy {
     val logger = HttpLoggingInterceptor.Logger { message ->
@@ -27,7 +39,16 @@ class NetRepository : DataRepository() {
       .connectTimeout(30, TimeUnit.SECONDS)
       .readTimeout(30, TimeUnit.SECONDS)
       .writeTimeout(30, TimeUnit.SECONDS)
-      .addInterceptor(HttpLoggingInterceptor(logger).apply {
+      .addInterceptor { chain ->
+        val request = chain.request().newBuilder()
+          .addHeader("Content-Type", "application/json")
+          .addHeader("nickname", "miyako")
+          .build()
+        "api1: ${request.url}".debugLog("Retrofit")
+        return@addInterceptor chain.proceed(request).apply {
+          "response: $code, ${request.url}".debugLog("Retrofit")
+        }
+      }.addInterceptor(HttpLoggingInterceptor(logger).apply {
         level = HttpLoggingInterceptor.Level.BODY
       })
       .build()
@@ -37,6 +58,17 @@ class NetRepository : DataRepository() {
       .client(okHttpClient)
       .addConverterFactory(networkJson.asConverterFactory("application/json".toMediaType())) // should add it at last.
       .build()
+  }
+
+  suspend fun login() {
+    request {
+      "login".debugLog()
+      val user = User("miyako", "123456").toMap()
+
+      retrofit.create(INetService::class.java).login(user).debug {
+        "login: $this".debugLog()
+      }
+    }
   }
 
   suspend fun requestArticles(): DataState<NetResult<ArticlePageDto>> {
@@ -57,6 +89,11 @@ interface INetService {
     @Path("page") page: Int,
     @Query("page_size") pageSize: Int
   ): NetResult<ArticlePageDto>
+
+  @POST("/user/login")
+  suspend fun login(
+    @Body user: HashMap<String, Any>,
+  ): ResponseBody
 }
 
 @Serializable
@@ -92,4 +129,16 @@ data class Article(
   @SerialName("title")
   val title: String,
 )
+
+@Serializable
+data class User(
+  @SerialName("username")
+  val username: String,
+  @SerialName("password")
+  val password: String
+) {
+  fun toMap(): HashMap<String, Any> {
+    return HashMap(mapOf("username" to username, "password" to password))
+  }
+}
 

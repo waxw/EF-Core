@@ -7,10 +7,7 @@ import com.miyako.core.ksp.mvi.DelegateDispatch
 import com.miyako.core.ksp.mvi.DispatchAction
 import com.miyako.core.ksp.mvi.Dispatcher
 import com.miyako.core.ksp.mvi.defReturn
-import com.miyako.data.ArticlePageDto
 import com.miyako.data.DataFactory
-import com.miyako.data.NetRepository
-import com.miyako.data.NetResult
 import com.miyako.mvi.MviViewModel
 import com.miyako.mvi.UiAction
 import com.miyako.mvi.UiEffect
@@ -72,6 +69,7 @@ class DemoViewModel : MviViewModel<DemoViewModel.UiState, UiEffect, UiAction>() 
 
   fun loadData() {
     viewModelScope.launch(Dispatchers.IO) {
+      netRepository.login()
       dataFactory.load(delay = 1000, netRepository::requestArticles)
     }
   }
