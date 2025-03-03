@@ -4,6 +4,25 @@ import org.junit.Assert
 import org.junit.Test
 
 class BaseExtensionsUnitTest {
+
+  @Test
+  fun test_debug() {
+    val target: String? = null
+    var cnt = 0
+    target.debug {
+      cnt++
+    }
+
+    Assert.assertTrue(cnt == 1)
+
+    val target1: String = "123"
+    cnt = 0
+    target1.debug {
+      cnt++
+    }
+    Assert.assertTrue(cnt == 1)
+  }
+
   @Test
   fun test_init() {
     val obj: MutableList<Int>? = null

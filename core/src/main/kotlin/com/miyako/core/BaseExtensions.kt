@@ -31,12 +31,12 @@ inline fun Boolean?.ifFalse(block: () -> Unit): Boolean? {
   return this
 }
 
-inline fun <T> T?.withNull(block: () -> Unit): Boolean {
+inline fun <T> T.withNull(block: () -> Unit): Boolean {
   if (this == null) block()
   return this == null
 }
 
-inline fun <T> T?.withNotNull(block: (T) -> Unit): Boolean {
+inline fun <T> T.withNotNull(block: (T) -> Unit): Boolean {
   if (this != null) block(this)
   return this != null
 }
