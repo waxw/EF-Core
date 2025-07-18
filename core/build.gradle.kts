@@ -56,6 +56,8 @@ dependencies {
   testImplementation(libs.junit)
   androidTestImplementation(libs.androidx.junit)
   androidTestImplementation(libs.androidx.espresso.core)
+  // Coroutines 测试库
+  testImplementation(libs.kotlinx.coroutines.test)
 }
 
 afterEvaluate {
