@@ -31,6 +31,18 @@ inline fun Boolean?.ifFalse(block: () -> Unit): Boolean? {
   return this
 }
 
+inline fun <T> T.thenIf(condition: Boolean, block: T.() -> T): T {
+  return if (condition) block() else this
+}
+
+inline fun <T> T.thenNull(block: () -> T): T {
+  return this ?: block()
+}
+
+inline fun <T> T.thenNotNull(block: T.() -> T): T {
+  return if (this != null) block() else this
+}
+
 inline fun <T> T.withNull(block: () -> Unit): Boolean {
   if (this == null) block()
   return this == null
