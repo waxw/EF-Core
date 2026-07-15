@@ -8,37 +8,51 @@
   android:orientation="vertical"
   tools:context=".MainActivity">
 
-  <TextView
-    android:id="@+id/tvTitle"
+  <com.miyako.core.rv.ScaffoldRecyclerView
+    android:id="@+id/scaffold"
     android:layout_width="match_parent"
-    android:layout_height="44dp"
-    android:gravity="center" />
+    android:layout_height="match_parent"
+    android:orientation="vertical">
 
-  <TextView
-    android:id="@+id/tvSpannableString"
-    android:layout_width="match_parent"
-    android:layout_height="44dp"
-    android:gravity="center" />
+    <TextView
+      android:id="@+id/tvTitle"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center" />
 
-  <TextView
-    android:layout_width="match_parent"
-    android:layout_height="44dp"
-    android:gravity="center"
-    android:text="@string/text1"
-    android:textSize="26sp" />
+    <TextView
+      android:id="@+id/tvSpannableString"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center" />
 
-  <Button
-    android:id="@+id/btnChangeChinese"
-    android:layout_width="match_parent"
-    android:layout_height="44dp"
-    android:gravity="center"
-    android:text="中文" />
+    <TextView
+      android:id="@+id/custom"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="@string/text1"
+      android:textSize="26sp" />
 
-  <Button
-    android:id="@+id/btnChangeDefault"
-    android:layout_width="match_parent"
-    android:layout_height="44dp"
-    android:gravity="center"
-    android:text="English" />
+    <Button
+      android:id="@+id/btnChangeChinese"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="中文" />
+
+    <Button
+      android:id="@+id/btnChangeDefault"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="English" />
+
+    <androidx.recyclerview.widget.RecyclerView
+      android:id="@+id/rvList"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"/>
+
+  </com.miyako.core.rv.ScaffoldRecyclerView>
 
 </LinearLayout>

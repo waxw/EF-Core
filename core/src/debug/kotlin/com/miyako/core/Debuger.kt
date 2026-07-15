@@ -5,13 +5,13 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-inline fun <T> T?.debugLog(tag: String = "miyako"): T? {
+inline fun <T> T.debugLog(tag: String = "miyako"): T {
   Log.d(tag, this?.toString() ?: "null")
   return this
 }
 
-inline fun <T> T?.debug(crossinline action: T?.() -> Unit): T? {
-  this?.action()
+inline fun <T> T.debug(crossinline action: T.() -> Unit): T {
+  this.action()
   return this
 }
 
