@@ -24,12 +24,12 @@ class BaseExtensionsUnitTest {
   }
 
   @Test
-  fun test_init() {
+  fun test_orInit() {
     val obj: MutableList<Int>? = null
-    val result = obj.init {
+    val result = obj.orInit {
       mutableListOf(1, 2, 3)
     }
-    val result1 = result.init {
+    val result1 = result.orInit {
       emptyList()
     }
     Assert.assertNull(obj)
@@ -72,87 +72,48 @@ class BaseExtensionsUnitTest {
   }
 
   @Test
-  fun test_withNull() {
-    val obj: Any? = null
-    var cnt = 0
-    val result = obj.withNull {
-      cnt = 1
-    }
-    Assert.assertTrue(result)
-    Assert.assertEquals(cnt, 1)
-
-    val obj1: Any? = 233
-    var cnt1 = 0
-    val result1 = obj1.withNull {
-      cnt = 1
-    }
-    Assert.assertFalse(result1)
-    Assert.assertEquals(cnt1, 0)
-  }
-
-
-  @Test
-  fun test_withNotNull() {
-    val obj: Any? = 255
-    var cnt = 0
-    val result = obj.withNotNull {
-      cnt = 1
-    }
-    Assert.assertTrue(result)
-    Assert.assertEquals(cnt, 1)
-
-    val obj1: Any? = null
-    var cnt1 = 0
-    val result1 = obj1.withNotNull {
-      cnt = 1
-    }
-    Assert.assertFalse(result1)
-    Assert.assertEquals(cnt1, 0)
-  }
-
-  @Test
-  fun test_instance() {
+  fun test_cast() {
     val tmp = 233
     var cnt = 0
-    tmp.instance<Int> {
+    tmp.cast<Int> {
       cnt = 2
     }
     Assert.assertEquals(2, cnt)
 
-    tmp.instance<Double>({ cnt = 3 }) {
+    tmp.cast<Double, Unit>({ cnt = 3 }) {
       cnt = 4
     }
     Assert.assertNotEquals(4, cnt)
 
-    tmp.instance<Number> {
+    tmp.cast<Number> {
       cnt = 5
     }
     Assert.assertEquals(5, cnt)
 
-    val result = tmp.instance<Int, Int>({ 22 }) { 33 }
+    val result = tmp.cast<Int, Int>({ 22 }) { 33 }
     Assert.assertEquals(33, result)
   }
 
   @Test
-  fun test_instance_null() {
+  fun test_cast_null() {
     val tmp: Int? = null
     var cnt = 0
-    tmp.instance<Int> {
+    tmp.cast<Int> {
       cnt = 2
     }
     Assert.assertEquals(0, cnt)
 
-    tmp.instance<Double>({ cnt = 3 }) {
+    tmp.cast<Double, Unit>({ cnt = 3 }) {
       cnt = 4
     }
     Assert.assertNotEquals(4, cnt)
 
-    tmp.instance<Number> {
+    tmp.cast<Number> {
       cnt = 5
     }
     Assert.assertNotEquals(5, cnt)
 
-    val result = tmp.instance<Int, Int>({ 22 }) { 33 }
+    val result = tmp.cast<Int, Int>({ 22 }) { 33 }
     Assert.assertEquals(22, result)
   }
 }

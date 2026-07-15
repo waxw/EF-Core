@@ -6,8 +6,8 @@ import android.view.View
 import android.widget.LinearLayout
 import androidx.recyclerview.widget.ConcatAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.miyako.core.cast
 import com.miyako.core.debugLog
-import com.miyako.core.instance
 
 class ScaffoldRecyclerView @JvmOverloads constructor(
   context: Context,
@@ -66,9 +66,9 @@ class ScaffoldRecyclerView @JvmOverloads constructor(
 
   fun refresh() {
     if (isInflated.not() || isReInflated.not()) return
-    getChildAt(0).instance<RecyclerView> {
-      "adapter: ${it.adapter}".debugLog()
-      it.adapter?.notifyDataSetChanged()
+    getChildAt(0).cast<RecyclerView> {
+      "adapter: ${adapter}".debugLog()
+      adapter?.notifyDataSetChanged()
     }
   }
 
