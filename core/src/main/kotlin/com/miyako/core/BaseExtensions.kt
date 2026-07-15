@@ -43,16 +43,6 @@ inline fun <T> T.thenNotNull(block: T.() -> T): T {
   return if (this != null) block() else this
 }
 
-inline fun <T> T.withNull(block: () -> Unit): Boolean {
-  if (this == null) block()
-  return this == null
-}
-
-inline fun <T> T.withNotNull(block: (T) -> Unit): Boolean {
-  if (this != null) block(this)
-  return this != null
-}
-
 inline fun <reified T> Any?.instance(onNotMatch: (Any?) -> Unit = {}, onMatch: (T) -> Unit) {
   if (this is T) onMatch(this) else onNotMatch(this)
 }

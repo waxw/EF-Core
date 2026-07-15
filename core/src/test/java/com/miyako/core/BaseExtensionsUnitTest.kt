@@ -72,45 +72,6 @@ class BaseExtensionsUnitTest {
   }
 
   @Test
-  fun test_withNull() {
-    val obj: Any? = null
-    var cnt = 0
-    val result = obj.withNull {
-      cnt = 1
-    }
-    Assert.assertTrue(result)
-    Assert.assertEquals(cnt, 1)
-
-    val obj1: Any? = 233
-    var cnt1 = 0
-    val result1 = obj1.withNull {
-      cnt = 1
-    }
-    Assert.assertFalse(result1)
-    Assert.assertEquals(cnt1, 0)
-  }
-
-
-  @Test
-  fun test_withNotNull() {
-    val obj: Any? = 255
-    var cnt = 0
-    val result = obj.withNotNull {
-      cnt = 1
-    }
-    Assert.assertTrue(result)
-    Assert.assertEquals(cnt, 1)
-
-    val obj1: Any? = null
-    var cnt1 = 0
-    val result1 = obj1.withNotNull {
-      cnt = 1
-    }
-    Assert.assertFalse(result1)
-    Assert.assertEquals(cnt1, 0)
-  }
-
-  @Test
   fun test_instance() {
     val tmp = 233
     var cnt = 0
