@@ -72,48 +72,48 @@ class BaseExtensionsUnitTest {
   }
 
   @Test
-  fun test_instance() {
+  fun test_cast() {
     val tmp = 233
     var cnt = 0
-    tmp.instance<Int> {
+    tmp.cast<Int> {
       cnt = 2
     }
     Assert.assertEquals(2, cnt)
 
-    tmp.instance<Double>({ cnt = 3 }) {
+    tmp.cast<Double, Unit>({ cnt = 3 }) {
       cnt = 4
     }
     Assert.assertNotEquals(4, cnt)
 
-    tmp.instance<Number> {
+    tmp.cast<Number> {
       cnt = 5
     }
     Assert.assertEquals(5, cnt)
 
-    val result = tmp.instance<Int, Int>({ 22 }) { 33 }
+    val result = tmp.cast<Int, Int>({ 22 }) { 33 }
     Assert.assertEquals(33, result)
   }
 
   @Test
-  fun test_instance_null() {
+  fun test_cast_null() {
     val tmp: Int? = null
     var cnt = 0
-    tmp.instance<Int> {
+    tmp.cast<Int> {
       cnt = 2
     }
     Assert.assertEquals(0, cnt)
 
-    tmp.instance<Double>({ cnt = 3 }) {
+    tmp.cast<Double, Unit>({ cnt = 3 }) {
       cnt = 4
     }
     Assert.assertNotEquals(4, cnt)
 
-    tmp.instance<Number> {
+    tmp.cast<Number> {
       cnt = 5
     }
     Assert.assertNotEquals(5, cnt)
 
-    val result = tmp.instance<Int, Int>({ 22 }) { 33 }
+    val result = tmp.cast<Int, Int>({ 22 }) { 33 }
     Assert.assertEquals(22, result)
   }
 }

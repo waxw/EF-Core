@@ -43,11 +43,13 @@ inline fun <T> T.thenNotNull(block: T.() -> T): T {
   return if (this != null) block() else this
 }
 
-inline fun <reified T> Any?.instance(onNotMatch: (Any?) -> Unit = {}, onMatch: (T) -> Unit) {
-  if (this is T) onMatch(this) else onNotMatch(this)
+inline fun <reified T> Any?.cast() = this as? T
+
+inline fun <reified T> Any?.cast(onMatch: T.() -> Unit) {
+  if (this is T) onMatch(this)
 }
 
-inline fun <reified T, R> Any?.instance(onNotMatch: (Any?) -> R, onMatch: (T) -> R): R {
+inline fun <reified T, R> Any?.cast(onNotMatch: (Any?) -> R, onMatch: T.() -> R): R {
   return if (this is T) onMatch(this) else onNotMatch(this)
 }
 
