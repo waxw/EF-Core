@@ -8,7 +8,7 @@ import kotlin.contracts.contract
 @OptIn(ExperimentalContracts::class)
 inline fun <T> T?.init(block: () -> T): T {
   contract {
-    callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    callsInPlace(block, InvocationKind.AT_MOST_ONCE)
   }
   return this ?: block()
 }
@@ -16,7 +16,7 @@ inline fun <T> T?.init(block: () -> T): T {
 @OptIn(ExperimentalContracts::class)
 inline fun Boolean?.ifTrue(block: () -> Unit): Boolean? {
   contract {
-    callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    callsInPlace(block, InvocationKind.AT_MOST_ONCE)
   }
   if (this == true) block()
   return this
@@ -25,7 +25,7 @@ inline fun Boolean?.ifTrue(block: () -> Unit): Boolean? {
 @OptIn(ExperimentalContracts::class)
 inline fun Boolean?.ifFalse(block: () -> Unit): Boolean? {
   contract {
-    callsInPlace(block, InvocationKind.EXACTLY_ONCE)
+    callsInPlace(block, InvocationKind.AT_MOST_ONCE)
   }
   if (this == false) block()
   return this
