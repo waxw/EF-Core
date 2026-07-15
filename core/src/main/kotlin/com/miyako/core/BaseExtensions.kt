@@ -6,7 +6,7 @@ import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
 @OptIn(ExperimentalContracts::class)
-inline fun <T> T?.init(block: () -> T): T {
+inline fun <T> T?.orInit(block: () -> T): T {
   contract {
     callsInPlace(block, InvocationKind.AT_MOST_ONCE)
   }

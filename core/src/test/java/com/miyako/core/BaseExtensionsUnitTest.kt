@@ -24,12 +24,12 @@ class BaseExtensionsUnitTest {
   }
 
   @Test
-  fun test_init() {
+  fun test_orInit() {
     val obj: MutableList<Int>? = null
-    val result = obj.init {
+    val result = obj.orInit {
       mutableListOf(1, 2, 3)
     }
-    val result1 = result.init {
+    val result1 = result.orInit {
       emptyList()
     }
     Assert.assertNull(obj)
