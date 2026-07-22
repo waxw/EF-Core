@@ -1,7 +1,10 @@
 package com.miyako.core
 
 import com.miyako.core.task.TaskRunner
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
@@ -103,6 +106,65 @@ class TaskRunnerUnitTest {
   }
 
   @Test
+  fun test_execution_failWhen_false_retry_until_exhausted() = runTest {
+    var attemptCount = 0
+    var exhaustedCalled = false
+    val job = TaskRunner(maxAttempts = 3) {
+      attemptCount++
+      throw IllegalStateException("Retry")
+    }.failWhen<IllegalStateException> {
+      false
+    }.exhausted {
+      exhaustedCalled = true
+    }.launchIn(this, Dispatchers.IO)
+
+    job.join()
+    Assert.assertEquals(3, attemptCount)
+    Assert.assertTrue(exhaustedCalled)
+  }
+
+  @Test
+  fun test_execution_failWhen_true_stop_before_exhausted() = runTest {
+    var attemptCount = 0
+    var exhaustedCalled = false
+    val job = TaskRunner(maxAttempts = 3) {
+      attemptCount++
+      throw IllegalStateException("Stop")
+    }.failWhen<IllegalStateException> {
+      true
+    }.exhausted {
+      exhaustedCalled = true
+    }.launchIn(this, Dispatchers.IO)
+
+    job.join()
+    Assert.assertEquals(1, attemptCount)
+    Assert.assertFalse(exhaustedCalled)
+  }
+
+  @Test
+  fun test_execution_failWhenFallback_handles_unmatched_error() = runTest {
+    var attemptCount = 0
+    var fallbackCalled = false
+    var exhaustedCalled = false
+    val job = TaskRunner(maxAttempts = 3) {
+      attemptCount++
+      throw IllegalArgumentException("Fallback")
+    }.failWhen<IllegalStateException> {
+      true
+    }.failWhenFallback {
+      fallbackCalled = true
+      false
+    }.exhausted {
+      exhaustedCalled = true
+    }.launchIn(this, Dispatchers.IO)
+
+    job.join()
+    Assert.assertEquals(3, attemptCount)
+    Assert.assertTrue(fallbackCalled)
+    Assert.assertTrue(exhaustedCalled)
+  }
+
+  @Test
   fun test_execution_result_fail() = runTest {
     var failWhenCalled = false
     val job = TaskRunner {
@@ -148,6 +210,59 @@ class TaskRunnerUnitTest {
 
     job.join()
     Assert.assertTrue(timeoutCalled)
+  }
+
+  @Test
+  fun test_execution_beforeRetry_fail() = runTest {
+    var throwableCalled = false
+    val job = TaskRunner(maxAttempts = 2) {
+      mainJob()
+    }.stopWhen<Int> {
+      false
+    }.beforeRetry {
+      throw IllegalStateException("Before")
+    }.throwable {
+      throwableCalled = it.data.message == "Before"
+    }.launchIn(this, Dispatchers.IO)
+
+    job.join()
+    Assert.assertTrue(throwableCalled)
+  }
+
+  @Test
+  fun test_execution_finally_fail() = runTest {
+    var throwableCalled = false
+    val job = TaskRunner {
+      mainJob()
+    }.stopWhen<Int> {
+      true
+    }.finally {
+      throw IllegalStateException("Finally")
+    }.throwable {
+      throwableCalled = it.data.message == "Finally"
+    }.launchIn(this, Dispatchers.IO)
+
+    job.join()
+    Assert.assertTrue(throwableCalled)
+  }
+
+  @Test
+  fun test_execution_throwable_fail() = runTest {
+    val handlerError = IllegalStateException("Handler")
+    val exceptionHandler = CoroutineExceptionHandler { _, _ -> }
+    val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler) + exceptionHandler)
+    var completionError: Throwable? = null
+    val job = TaskRunner {
+      throw IllegalStateException("Max")
+    }.throwable {
+      throw handlerError
+    }.launchIn(scope, StandardTestDispatcher(testScheduler))
+
+    job.invokeOnCompletion {
+      completionError = it
+    }
+    job.join()
+    Assert.assertSame(handlerError, completionError)
   }
 
 }

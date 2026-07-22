@@ -22,9 +22,13 @@ class FailWhenCondition<T : Throwable>(
   private val type: KClass<T>,
   val execution: suspend (ExecutionResult<T>) -> Boolean
 ) : ExecutionCondition {
+  fun accepts(data: Any): Boolean {
+    return type.isInstance(data)
+  }
+
   @Suppress("UNCHECKED_CAST")
   override suspend fun matches(data: Any, result: ExecutionResult<*>): Boolean {
-    return if (type.isInstance(data)) {
+    return if (accepts(data)) {
       execution(result as ExecutionResult<T>)
     } else false
   }

@@ -100,6 +100,21 @@ class TaskRunner<T>(
 
   private val nanoMillis: Long get() = System.nanoTime() / 1_000_000
 
+  private suspend fun handleFailure(
+    error: Throwable,
+    result: ExecutionResult<Throwable>,
+  ): Boolean {
+    if (error is CancellationException) throw error
+
+    throwable?.invoke(result)
+    val matchedFailWhenExecutions = failWhenExecutions.filter { it.accepts(error) }
+    if (matchedFailWhenExecutions.isNotEmpty()) {
+      return matchedFailWhenExecutions.any { it.matches(error, result) }
+    }
+
+    return failWhenFallback?.invoke(result) ?: false
+  }
+
   private suspend fun execute() {
     val realSupplier = supplier ?: throw IllegalStateException("TaskRunner must have supplier")
     val startTime = System.currentTimeMillis()
@@ -118,39 +133,51 @@ class TaskRunner<T>(
         val attemptStart = nanoMillis
         // 是否超时
         if (config.totalTimeoutMs > 0 && attemptStart - startNano > config.totalTimeoutMs) {
-          timeout?.invoke(ExecutionResult(executionMetrics(attemptStart, attemptStart), Unit))
+          try {
+            timeout?.invoke(ExecutionResult(executionMetrics(attemptStart, attemptStart), Unit))
+          } catch (t: Throwable) {
+            handleFailure(t, ExecutionResult(executionMetrics(attemptStart, nanoMillis), t))
+          }
           break
         }
 
+        var shouldRunSupplier = true
+
         // 进行重试回调
         if (executionCount > 1) {
-          beforeRetry?.invoke(ExecutionResult(executionMetrics(attemptStart, attemptStart), Unit))
+          try {
+            beforeRetry?.invoke(ExecutionResult(executionMetrics(attemptStart, attemptStart), Unit))
+          } catch (t: Throwable) {
+            if (handleFailure(t, ExecutionResult(executionMetrics(attemptStart, nanoMillis), t))) {
+              break
+            }
+            shouldRunSupplier = false
+          }
         }
 
-        try {
-          val processData = realSupplier()
-          val info = ExecutionResult(executionMetrics(attemptStart, nanoMillis), processData)
-          result?.invoke(info)
+        if (shouldRunSupplier) {
+          try {
+            val processData = realSupplier()
+            val info = ExecutionResult(executionMetrics(attemptStart, nanoMillis), processData)
+            result?.invoke(info)
 
-          // 如果 result 为 Unit，说明执行函数没有返回值，剩余执行次数或超时自动停止
-          if (processData !is Unit) {
-            val shouldStop = stopWhenExecutions.any { it.matches(processData as Any, info) }
-            if (shouldStop) break
+            // 如果 result 为 Unit，说明执行函数没有返回值，剩余执行次数或超时自动停止
+            if (processData !is Unit) {
+              val shouldStop = stopWhenExecutions.any { it.matches(processData as Any, info) }
+              if (shouldStop) break
+            }
+          } catch (t: Throwable) {
+            val result = ExecutionResult(executionMetrics(attemptStart, nanoMillis), t)
+            if (handleFailure(t, result)) break
           }
-        } catch (t: Throwable) {
-          // 处理取消异常：直接抛出，允许协程取消
-          if (t is CancellationException) throw t
-
-          val result = ExecutionResult(executionMetrics(attemptStart, nanoMillis), t)
-          throwable?.invoke(result)
-          val shouldBreak = failWhenExecutions.map { it.matches(t, result) }.all { it }
-
-          failWhenFallback?.invoke(result)
-          if (shouldBreak) break
         }
 
         if (executionCount >= maxExecutions) {
-          exhausted?.invoke(ExecutionResult(executionMetrics(attemptStart, nanoMillis), Unit))
+          try {
+            exhausted?.invoke(ExecutionResult(executionMetrics(attemptStart, nanoMillis), Unit))
+          } catch (t: Throwable) {
+            handleFailure(t, ExecutionResult(executionMetrics(attemptStart, nanoMillis), t))
+          }
           break
         }
 
@@ -158,17 +185,24 @@ class TaskRunner<T>(
         delay(config.retryIntervalMs)
       }
     } catch (t: Throwable) {
-      // 处理取消异常：直接抛出，允许协程取消
       if (t is CancellationException) {
         val nanoEnd = nanoMillis
-        cancel?.invoke(ExecutionResult(executionMetrics(nanoEnd, nanoEnd), Unit))
-        throw t
+        try {
+          cancel?.invoke(ExecutionResult(executionMetrics(nanoEnd, nanoEnd), Unit))
+        } catch (cancelError: Throwable) {
+          handleFailure(cancelError, ExecutionResult(executionMetrics(nanoEnd, nanoMillis), cancelError))
+        }
       }
+      throw t
     } finally {
       withContext(NonCancellable) {
         // 这里的挂起代码即使协程被取消，也会执行完成
         val nanoEnd = nanoMillis
-        finally?.invoke(ExecutionResult(executionMetrics(nanoEnd, nanoEnd), Unit))
+        try {
+          finally?.invoke(ExecutionResult(executionMetrics(nanoEnd, nanoEnd), Unit))
+        } catch (t: Throwable) {
+          handleFailure(t, ExecutionResult(executionMetrics(nanoEnd, nanoMillis), t))
+        }
       }
       cleanUp()
     }
@@ -246,4 +280,3 @@ class TaskRunner<T>(
     job?.cancel()
   }
 }
-
