@@ -2,14 +2,22 @@ package com.miyako.core.task
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.CoroutineContext
-import kotlin.coroutines.cancellation.CancellationException
 
+/**
+ * 一次性协程任务执行器 DSL。
+ *
+ * [timeoutMs] 表示 TaskRunner 从首次延迟到重试流程结束的总硬超时。supplier 内部自行使用
+ * withTimeout 抛出的 TimeoutCancellationException 会作为一次执行失败进入 [throwable] /
+ * [failWhen] / [failWhenFallback]，不会触发 [timeout]。
+ *
+ * @param delayMs 首次执行前延迟，单位毫秒。
+ * @param intervalMs 两次执行之间的重试间隔，单位毫秒。
+ * @param maxAttempts 最大执行次数，包含首次执行。
+ * @param timeoutMs TaskRunner 总硬超时，0 表示不限制。
+ * @param supplier 每次执行的任务体。
+ */
 class TaskRunner<T>(
   delayMs: Long = 0,
   intervalMs: Long = 0,
@@ -57,155 +65,103 @@ class TaskRunner<T>(
     stopWhen<E> { execution(it).not() }
   }
 
-  fun exhausted(block: suspend (ExecutionResult<Unit>) -> Unit) = checkExecution {
-    exhausted = block
-  }
-
+  /**
+   * 每次 supplier 成功返回后调用。
+   */
   fun result(block: suspend (ExecutionResult<T>) -> Unit) = checkExecution {
     result = block
   }
 
+  /**
+   * 处理一次正常流程中的失败。
+   *
+   * supplier 内部抛出的异常会进入这里，包括 supplier 自己使用 withTimeout 产生的
+   * TimeoutCancellationException。TaskRunner 的总超时不会进入这里，而是触发 [timeout]。
+   */
   fun throwable(block: suspend (ExecutionResult<Throwable>) -> Unit) = checkExecution {
     throwable = block
   }
 
+  /**
+   * 当没有任何 [failWhen] 类型匹配当前异常时，决定是否提前终止。
+   *
+   * 返回 true 表示终止 TaskRunner；返回 false 表示继续重试，直到达到最大执行次数后触发 [exhausted]。
+   */
   fun failWhenFallback(block: suspend (ExecutionResult<Throwable>) -> Boolean) = checkExecution {
     failWhenFallback = block
   }
 
+  /**
+   * 每次重试前调用。
+   *
+   * 这里抛出的异常属于正常流程失败，会进入 [throwable] / [failWhen] / [failWhenFallback]。
+   */
   fun beforeRetry(block: suspend (ExecutionResult<Unit>) -> Unit) = checkExecution {
     beforeRetry = block
   }
 
+  /**
+   * 达到最大执行次数后调用。
+   *
+   * 这里抛出的异常属于正常流程失败，会进入 [throwable] / [failWhen] / [failWhenFallback]。
+   */
+  fun exhausted(block: suspend (ExecutionResult<Unit>) -> Unit) = checkExecution {
+    exhausted = block
+  }
+
+  /**
+   * TaskRunner 总超时时调用。
+   *
+   * 该回调只表示 TaskRunner 自己的 [ExecutionConfig.totalTimeoutMs] 到达。supplier 内部的
+   * withTimeout 超时会作为一次失败进入 [throwable]，不会触发这里。
+   */
   fun timeout(block: suspend (ExecutionResult<Unit>) -> Unit) = checkExecution {
     timeout = block
   }
 
+  /**
+   * TaskRunner 所在协程被外部取消时调用。
+   *
+   * 这里属于生命周期收尾阶段；回调自身抛出的异常不会进入 [throwable]，而是暴露给返回的 Job。
+   */
   fun cancel(block: suspend (ExecutionResult<Unit>) -> Unit) = checkExecution {
     cancel = block
   }
 
-
+  /**
+   * TaskRunner 结束时调用，取消场景下也会尽量执行完成。
+   *
+   * 这里属于生命周期收尾阶段；回调自身抛出的异常不会进入 [throwable]，而是暴露给返回的 Job。
+   */
   fun finally(block: suspend (ExecutionResult<Unit>) -> Unit) = checkExecution {
     finally = block
   }
 
-  fun <E : Any> addStopWhenExecution(execution: StopWhenCondition<E>) = checkExecution {
+  @PublishedApi
+  internal fun <E : Any> addStopWhenExecution(execution: StopWhenCondition<E>) = checkExecution {
     stopWhenExecutions.add(execution)
   }
 
-  fun <E : Throwable> addFailExecution(execution: FailWhenCondition<E>) = checkExecution {
+  @PublishedApi
+  internal fun <E : Throwable> addFailExecution(execution: FailWhenCondition<E>) = checkExecution {
     failWhenExecutions.add(execution)
   }
 
-  private val nanoMillis: Long get() = System.nanoTime() / 1_000_000
-
-  private suspend fun handleFailure(
-    error: Throwable,
-    result: ExecutionResult<Throwable>,
-  ): Boolean {
-    if (error is CancellationException) throw error
-
-    throwable?.invoke(result)
-    val matchedFailWhenExecutions = failWhenExecutions.filter { it.accepts(error) }
-    if (matchedFailWhenExecutions.isNotEmpty()) {
-      return matchedFailWhenExecutions.any { it.matches(error, result) }
-    }
-
-    return failWhenFallback?.invoke(result) ?: false
-  }
-
-  private suspend fun execute() {
-    val realSupplier = supplier ?: throw IllegalStateException("TaskRunner must have supplier")
-    val startTime = System.currentTimeMillis()
-    val startNano = nanoMillis
-    var executionCount = 1
-    val maxExecutions = config.maxAttempts
-
-    delay(config.initialDelayMs)
-
-    val executionMetrics = { start: Long, end: Long ->
-      ExecutionMetrics(executionCount, startTime + start, end - start, end - startNano)
-    }
-
-    try {
-      while (true) {
-        val attemptStart = nanoMillis
-        // 是否超时
-        if (config.totalTimeoutMs > 0 && attemptStart - startNano > config.totalTimeoutMs) {
-          try {
-            timeout?.invoke(ExecutionResult(executionMetrics(attemptStart, attemptStart), Unit))
-          } catch (t: Throwable) {
-            handleFailure(t, ExecutionResult(executionMetrics(attemptStart, nanoMillis), t))
-          }
-          break
-        }
-
-        var shouldRunSupplier = true
-
-        // 进行重试回调
-        if (executionCount > 1) {
-          try {
-            beforeRetry?.invoke(ExecutionResult(executionMetrics(attemptStart, attemptStart), Unit))
-          } catch (t: Throwable) {
-            if (handleFailure(t, ExecutionResult(executionMetrics(attemptStart, nanoMillis), t))) {
-              break
-            }
-            shouldRunSupplier = false
-          }
-        }
-
-        if (shouldRunSupplier) {
-          try {
-            val processData = realSupplier()
-            val info = ExecutionResult(executionMetrics(attemptStart, nanoMillis), processData)
-            result?.invoke(info)
-
-            // 如果 result 为 Unit，说明执行函数没有返回值，剩余执行次数或超时自动停止
-            if (processData !is Unit) {
-              val shouldStop = stopWhenExecutions.any { it.matches(processData as Any, info) }
-              if (shouldStop) break
-            }
-          } catch (t: Throwable) {
-            val result = ExecutionResult(executionMetrics(attemptStart, nanoMillis), t)
-            if (handleFailure(t, result)) break
-          }
-        }
-
-        if (executionCount >= maxExecutions) {
-          try {
-            exhausted?.invoke(ExecutionResult(executionMetrics(attemptStart, nanoMillis), Unit))
-          } catch (t: Throwable) {
-            handleFailure(t, ExecutionResult(executionMetrics(attemptStart, nanoMillis), t))
-          }
-          break
-        }
-
-        executionCount++
-        delay(config.retryIntervalMs)
-      }
-    } catch (t: Throwable) {
-      if (t is CancellationException) {
-        val nanoEnd = nanoMillis
-        try {
-          cancel?.invoke(ExecutionResult(executionMetrics(nanoEnd, nanoEnd), Unit))
-        } catch (cancelError: Throwable) {
-          handleFailure(cancelError, ExecutionResult(executionMetrics(nanoEnd, nanoMillis), cancelError))
-        }
-      }
-      throw t
-    } finally {
-      withContext(NonCancellable) {
-        // 这里的挂起代码即使协程被取消，也会执行完成
-        val nanoEnd = nanoMillis
-        try {
-          finally?.invoke(ExecutionResult(executionMetrics(nanoEnd, nanoEnd), Unit))
-        } catch (t: Throwable) {
-          handleFailure(t, ExecutionResult(executionMetrics(nanoEnd, nanoMillis), t))
-        }
-      }
-      cleanUp()
-    }
+  private fun buildSpec(): TaskExecutionSpec<T> {
+    return TaskExecutionSpec(
+      config = config,
+      supplier = supplier ?: throw IllegalStateException("TaskRunner must have supplier"),
+      stopWhenExecutions = stopWhenExecutions.toList(),
+      failWhenExecutions = failWhenExecutions.toList(),
+      result = result,
+      throwable = throwable,
+      failWhenFallback = failWhenFallback,
+      beforeRetry = beforeRetry,
+      exhausted = exhausted,
+      timeout = timeout,
+      cancel = cancel,
+      finally = finally,
+    )
   }
 
   /**
@@ -219,6 +175,7 @@ class TaskRunner<T>(
     beforeRetry = null
     exhausted = null
     timeout = null
+    cancel = null
     finally = null
     stopWhenExecutions.clear()
     failWhenExecutions.clear()
@@ -262,17 +219,10 @@ class TaskRunner<T>(
     check(launched.compareAndSet(false, true)) {
       "TaskRunner can only be launched once"
     }
-    check(supplier != null) {
-      "TaskRunner must have supplier"
-    }
-    return scope.launch(dispatcher) {
-      job = this.coroutineContext[Job]
-      execute()
-    }.also {
+    val execution = TaskExecution(buildSpec())
+    return execution.launchIn(scope, dispatcher).also {
       job = it
-      it.invokeOnCompletion {
-        cleanUp()
-      }
+      cleanUp()
     }
   }
 

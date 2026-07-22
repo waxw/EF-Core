@@ -5,9 +5,12 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert
 import org.junit.Test
 import java.lang.Exception
@@ -213,6 +216,150 @@ class TaskRunnerUnitTest {
   }
 
   @Test
+  fun test_execution_timeout_cancels_running_supplier() = runTest {
+    var resultCalled = false
+    var timeoutCalled = false
+    val job = TaskRunner(timeoutMs = 1000) {
+      delay(2000)
+      mainJob()
+    }.result {
+      resultCalled = true
+    }.timeout {
+      timeoutCalled = true
+    }.launchIn(this, StandardTestDispatcher(testScheduler))
+
+    job.join()
+    Assert.assertTrue(timeoutCalled)
+    Assert.assertFalse(resultCalled)
+  }
+
+  @Test
+  fun test_execution_timeout_fail() = runTest {
+    val handlerError = IllegalStateException("Timeout")
+    val exceptionHandler = CoroutineExceptionHandler { _, _ -> }
+    val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler) + exceptionHandler)
+    var completionError: Throwable? = null
+    var throwableCalled = false
+    val job = TaskRunner(timeoutMs = 1000) {
+      delay(2000)
+      mainJob()
+    }.timeout {
+      throw handlerError
+    }.throwable {
+      throwableCalled = true
+    }.launchIn(scope, StandardTestDispatcher(testScheduler))
+
+    job.invokeOnCompletion {
+      completionError = it
+    }
+    job.join()
+    Assert.assertSame(handlerError, completionError)
+    Assert.assertFalse(throwableCalled)
+  }
+
+  @Test
+  fun test_execution_supplier_timeout_uses_failure_dsl_before_total_timeout() = runTest {
+    var attemptCount = 0
+    var throwableCount = 0
+    var timeoutCalled = false
+    var exhaustedCalled = false
+    val job = TaskRunner(maxAttempts = 2, timeoutMs = 5000) {
+      attemptCount++
+      withTimeout(1000) {
+        delay(2000)
+      }
+    }.throwable {
+      throwableCount++
+    }.failWhen<TimeoutCancellationException> {
+      false
+    }.timeout {
+      timeoutCalled = true
+    }.exhausted {
+      exhaustedCalled = true
+    }.launchIn(this, StandardTestDispatcher(testScheduler))
+
+    job.join()
+    Assert.assertEquals(2, attemptCount)
+    Assert.assertEquals(2, throwableCount)
+    Assert.assertFalse(timeoutCalled)
+    Assert.assertTrue(exhaustedCalled)
+  }
+
+  @Test
+  fun test_execution_attempt_start_time_uses_wall_clock() = runTest {
+    val beforeLaunch = System.currentTimeMillis()
+    var attemptStartTime = 0L
+    val job = TaskRunner {
+      mainJob()
+    }.result {
+      attemptStartTime = it.executionMetrics.attemptStartTime
+    }.stopWhen<Int> {
+      true
+    }.launchIn(this, StandardTestDispatcher(testScheduler))
+
+    job.join()
+    val afterCompletion = System.currentTimeMillis()
+    Assert.assertTrue(attemptStartTime in beforeLaunch..afterCompletion)
+  }
+
+  @Test
+  fun test_execution_cannot_modify_after_launch() = runTest {
+    val runner = TaskRunner {
+      mainJob()
+    }.stopWhen<Int> {
+      true
+    }
+    val job = runner.launchIn(this, Dispatchers.IO)
+
+    val error = runCatching {
+      runner.result {}
+    }.exceptionOrNull()
+
+    job.join()
+    Assert.assertTrue(error is IllegalStateException)
+  }
+
+  @Test
+  fun test_execution_cancel_callback_after_launch() = runTest {
+    var cancelCalled = false
+    val runner = TaskRunner {
+      delay(1000)
+      mainJob()
+    }.cancel {
+      cancelCalled = true
+    }
+    val job = runner.launchIn(this, StandardTestDispatcher(testScheduler))
+
+    testScheduler.runCurrent()
+    runner.cancel()
+    job.join()
+    Assert.assertTrue(cancelCalled)
+  }
+
+  @Test
+  fun test_execution_cancel_fail() = runTest {
+    val handlerError = IllegalStateException("Cancel")
+    val exceptionHandler = CoroutineExceptionHandler { _, _ -> }
+    val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler) + exceptionHandler)
+    var completionError: Throwable? = null
+    val runner = TaskRunner {
+      delay(1000)
+      mainJob()
+    }.cancel {
+      throw handlerError
+    }
+    val job = runner.launchIn(scope, StandardTestDispatcher(testScheduler))
+
+    job.invokeOnCompletion {
+      completionError = it
+    }
+    testScheduler.runCurrent()
+    runner.cancel()
+    job.join()
+    Assert.assertSame(handlerError, completionError)
+  }
+
+  @Test
   fun test_execution_beforeRetry_fail() = runTest {
     var throwableCalled = false
     val job = TaskRunner(maxAttempts = 2) {
@@ -231,19 +378,24 @@ class TaskRunnerUnitTest {
 
   @Test
   fun test_execution_finally_fail() = runTest {
-    var throwableCalled = false
+    val handlerError = IllegalStateException("Finally")
+    val exceptionHandler = CoroutineExceptionHandler { _, _ -> }
+    val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler) + exceptionHandler)
+    var completionError: Throwable? = null
     val job = TaskRunner {
       mainJob()
     }.stopWhen<Int> {
       true
     }.finally {
-      throw IllegalStateException("Finally")
-    }.throwable {
-      throwableCalled = it.data.message == "Finally"
-    }.launchIn(this, Dispatchers.IO)
+      throw handlerError
+    }.launchIn(scope, StandardTestDispatcher(testScheduler))
 
+    job.invokeOnCompletion {
+      completionError = it
+    }
     job.join()
-    Assert.assertTrue(throwableCalled)
+    Assert.assertTrue(completionError is IllegalStateException)
+    Assert.assertEquals(handlerError.message, completionError?.message)
   }
 
   @Test
