@@ -1,8 +1,15 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
+
 plugins {
   id("java-library")
   alias(libs.plugins.jetbrainsKotlinJvm)
-  `maven-publish`
+  alias(libs.plugins.vanniktechMavenPublish)
 }
+
+val gavGroupId = "io.github.waxw"
+val gavArtifactId = "ksp"
+val gavVersion = "0.0.5"
 
 java {
   sourceCompatibility = JavaVersion.VERSION_17
@@ -15,15 +22,49 @@ dependencies {
   implementation(kotlin("reflect"))
 }
 
-afterEvaluate {
-  publishing {
-    publications {
-      register<MavenPublication>("java") {
-        from(components["java"])
-        groupId = "com.miyako"
-        artifactId = "ksp"
-        version = "0.0.1"
+mavenPublishing {
+  configure(
+    KotlinJvm(
+      javadocJar = JavadocJar.Empty(),
+      sourcesJar = true,
+    ),
+  )
+
+  publishToMavenCentral()
+  signAllPublications()
+
+  coordinates(
+    groupId = gavGroupId,
+    artifactId = gavArtifactId,
+    version = gavVersion,
+  )
+
+  pom {
+    name.set("EF-Core KSP")
+    description.set("KSP processor support for EF-Core.")
+    inceptionYear.set("2024")
+    url.set("https://github.com/waxw/EF-Core")
+
+    licenses {
+      license {
+        name.set("The Apache License, Version 2.0")
+        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+        distribution.set("repo")
       }
+    }
+
+    developers {
+      developer {
+        id.set("waxw")
+        name.set("waxw")
+        url.set("https://github.com/waxw")
+      }
+    }
+
+    scm {
+      url.set("https://github.com/waxw/EF-Core")
+      connection.set("scm:git:git://github.com/waxw/EF-Core.git")
+      developerConnection.set("scm:git:ssh://git@github.com/waxw/EF-Core.git")
     }
   }
 }
