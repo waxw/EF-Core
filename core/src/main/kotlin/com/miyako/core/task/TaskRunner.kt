@@ -1,9 +1,6 @@
 package com.miyako.core.task
 
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.CoroutineContext
 
 /**
  * 一次性协程任务执行器 DSL。
@@ -26,8 +23,7 @@ class TaskRunner<T>(
   private var supplier: (suspend () -> T)?,
 ) {
   private val config: ExecutionConfig = ExecutionConfig(delayMs, intervalMs, maxAttempts, timeoutMs)
-  private val launched = AtomicBoolean(false)
-  private var job: Job? = null
+  private val executed = AtomicBoolean(false)
 
   // 是否终止流程
   private val stopWhenExecutions = mutableListOf<StopWhenCondition<*>>()
@@ -43,7 +39,7 @@ class TaskRunner<T>(
   private var finally: (suspend (ExecutionResult<Unit>) -> Unit)? = null
 
   private fun checkExecution(block: () -> Unit) = apply {
-    check(!launched.get()) { "Cannot modify after launch" }
+    check(!executed.get()) { "Cannot modify after execute" }
     block()
   }
 
@@ -122,7 +118,7 @@ class TaskRunner<T>(
   /**
    * TaskRunner 所在协程被外部取消时调用。
    *
-   * 这里属于生命周期收尾阶段；回调自身抛出的异常不会进入 [throwable]，而是暴露给返回的 Job。
+   * 这里属于生命周期收尾阶段；回调自身抛出的异常不会进入 [throwable]，而是从 [execute] 暴露给调用方。
    */
   fun cancel(block: suspend (ExecutionResult<Unit>) -> Unit) = checkExecution {
     cancel = block
@@ -131,7 +127,7 @@ class TaskRunner<T>(
   /**
    * TaskRunner 结束时调用，取消场景下也会尽量执行完成。
    *
-   * 这里属于生命周期收尾阶段；回调自身抛出的异常不会进入 [throwable]，而是暴露给返回的 Job。
+   * 这里属于生命周期收尾阶段；回调自身抛出的异常不会进入 [throwable]，而是从 [execute] 暴露给调用方。
    */
   fun finally(block: suspend (ExecutionResult<Unit>) -> Unit) = checkExecution {
     finally = block
@@ -182,51 +178,41 @@ class TaskRunner<T>(
   }
 
   /**
-   * 启动任务执行流程，并返回对应的协程 Job。
+   * 挂起执行任务流程，并返回最终终态。
    *
    * 注意事项：
-   * 1. 本方法可能会同步抛出异常（如任务已启动时抛出 IllegalStateException），
-   *    调用方应使用 try/catch 捕获此类异常以避免程序崩溃。
+   * 1. 本方法不会额外启动子协程；调用方所在协程就是 TaskRunner 的结构化并发边界。
    *
-   * 2. 任务执行过程中可能出现异步异常，这些异常不会通过本方法抛出，
-   *    而是在返回的 Job 上通过 [Job.invokeOnCompletion] 以 Throwable 形式通知。
-   *    调用方应主动监听该回调，否则异步异常可能导致程序崩溃或异常丢失。
+   * 2. supplier 成功且没有配置 [stopWhen] 时，会直接返回 [TaskResult.Success]。
+   *    如果配置了 [stopWhen]，只有任一条件返回 true 时才返回成功终态；否则继续执行直到失败终止、
+   *    达到最大执行次数或总超时。
    *
-   * 3. 本 TaskRunner 只能启动一次，重复调用会抛异常。
+   * 3. 正常流程中的失败会进入 [throwable] / [failWhen] / [failWhenFallback]。
+   *    当失败策略要求终止时，返回 [TaskResult.Failure]；如果达到最大执行次数，返回 [TaskResult.Exhausted]。
    *
-   * 4. 返回的 Job 可用于取消任务执行或监听任务完成状态。
+   * 4. 总超时会触发 [timeout] 并返回 [TaskResult.Timeout]。外部取消会触发 [cancel] 后继续抛出
+   *    CancellationException。
    *
    * 示例：
    * ```
-   * try {
-   *   val job = executor.launchIn(scope)
-   *   job.invokeOnCompletion { throwable ->
-   *     if (throwable != null) {
-   *       // 处理异步异常
-   *     }
-   *   }
-   * } catch (e: IllegalStateException) {
-   *   // 处理重复启动等同步异常
+   * val result = executor.execute()
+   * when (result) {
+   *   is TaskResult.Success -> handleSuccess(result.data)
+   *   is TaskResult.Failure -> handleFailure(result.throwable)
+   *   is TaskResult.Exhausted -> handleExhausted()
+   *   is TaskResult.Timeout -> handleTimeout()
    * }
    * ```
    *
-   * @param scope 用于启动协程的 CoroutineScope。
-   * @param dispatcher 调度器。
-   * @return 启动的协程 Job。
-   * @throws IllegalStateException 如果任务已启动过，再次启动会抛出。
+   * @return 任务最终终态。
+   * @throws IllegalStateException 如果任务已执行过，再次执行会抛出。
    */
-  fun launchIn(scope: CoroutineScope, dispatcher: CoroutineContext): Job {
-    check(launched.compareAndSet(false, true)) {
-      "TaskRunner can only be launched once"
+  suspend fun execute(): TaskResult<T> {
+    check(executed.compareAndSet(false, true)) {
+      "TaskRunner can only be executed once"
     }
     val execution = TaskExecution(buildSpec())
-    return execution.launchIn(scope, dispatcher).also {
-      job = it
-      cleanUp()
-    }
-  }
-
-  fun cancel() {
-    job?.cancel()
+    cleanUp()
+    return execution.execute()
   }
 }

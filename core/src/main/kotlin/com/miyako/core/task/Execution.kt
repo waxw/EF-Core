@@ -61,3 +61,29 @@ data class ExecutionResult<T>(
   val executionMetrics: ExecutionMetrics,
   val data: T
 )
+
+sealed interface TaskResult<out T> {
+  val executionMetrics: ExecutionMetrics
+
+  data class Success<T>(
+    val result: ExecutionResult<T>,
+  ) : TaskResult<T> {
+    override val executionMetrics: ExecutionMetrics get() = result.executionMetrics
+    val data: T get() = result.data
+  }
+
+  data class Failure(
+    val result: ExecutionResult<Throwable>,
+  ) : TaskResult<Nothing> {
+    override val executionMetrics: ExecutionMetrics get() = result.executionMetrics
+    val throwable: Throwable get() = result.data
+  }
+
+  data class Exhausted(
+    override val executionMetrics: ExecutionMetrics,
+  ) : TaskResult<Nothing>
+
+  data class Timeout(
+    override val executionMetrics: ExecutionMetrics,
+  ) : TaskResult<Nothing>
+}
