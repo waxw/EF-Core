@@ -1,10 +1,10 @@
 package com.miyako.core.task
 
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.cancellation.CancellationException
@@ -17,188 +17,317 @@ internal class TaskExecution<T>(
   private class ExecutionState(
     val startTime: Long,
     val startNano: Long,
-    val executionJob: Job?,
-    var totalTimeoutJob: Job? = null,
-    var executionCount: Int = 1,
+    var executionCount: Int = 0,
+    var phase: ExecutionPhase = ExecutionPhase.INITIAL_DELAY,
+    var attemptStartNano: Long? = null,
+    var attemptEndNano: Long? = null,
+    var lastThrowable: Throwable? = null,
   )
 
-  private sealed interface AttemptResult<out T> {
-    data object Continue : AttemptResult<Nothing>
+  suspend fun execute(): ExecutionResult<T> {
+    val state = ExecutionState(System.currentTimeMillis(), nanoMillis)
+    var primaryError: Throwable? = null
 
-    data class Complete<T>(
-      val result: TaskResult<T>,
-    ) : AttemptResult<T>
-  }
-
-  private suspend fun handleFailure(
-    state: ExecutionState,
-    error: Throwable,
-    result: ExecutionResult<Throwable>,
-  ): Boolean {
-    if (error is CancellationException && !canHandleCancellationAsFailure(state, error)) throw error
-
-    spec.throwable?.invoke(result)
-    val matchedFailWhenExecutions = spec.failWhenExecutions.filter { it.accepts(error) }
-    if (matchedFailWhenExecutions.isNotEmpty()) {
-      return matchedFailWhenExecutions.any { it.matches(error, result) }
-    }
-
-    return spec.failWhenFallback?.invoke(result) ?: false
-  }
-
-  private fun canHandleCancellationAsFailure(
-    state: ExecutionState,
-    error: CancellationException,
-  ): Boolean {
-    if (error !is TimeoutCancellationException) return false
-
-    val ownerJob = error.ownerJob() ?: return false
-    // Supplier-owned withTimeout has its own timeout job; caller timeout and runner timeout target boundary jobs.
-    val isBoundaryTimeout = ownerJob == state.executionJob || ownerJob == state.totalTimeoutJob
-    return !isBoundaryTimeout && state.executionJob?.isActive == true
-  }
-
-  private fun TimeoutCancellationException.ownerJob(): Job? {
-    return runCatching {
-      javaClass.getDeclaredField("coroutine")
-        .apply { isAccessible = true }
-        .get(this) as? Job
-    }.getOrNull()
-  }
-
-  suspend fun execute(): TaskResult<T> {
-    val state = ExecutionState(
-      startTime = System.currentTimeMillis(),
-      startNano = nanoMillis,
-      executionJob = currentCoroutineContext()[Job],
-    )
-
-    return try {
-      runWithTotalTimeout(state)
-    } catch (t: Throwable) {
-      if (t is CancellationException) {
-        invokeCancel(state)
-      }
-      throw t
-    } finally {
-      invokeFinally(state)
-    }
-  }
-
-  private suspend fun runWithTotalTimeout(state: ExecutionState): TaskResult<T> {
-    return try {
-      if (spec.config.totalTimeoutMs > 0) {
-        withTimeout(spec.config.totalTimeoutMs) {
-          state.totalTimeoutJob = currentCoroutineContext()[Job]
-          runLoop(state)
+    try {
+      val result = runWithTotalTimeout(state)
+      notifyTerminal(result)
+      return result
+    } catch (throwable: Throwable) {
+      primaryError = throwable
+      if (throwable is CancellationException) {
+        try {
+          notifyCancel(state)
+        } catch (callbackCancellation: CancellationException) {
+          throwable.addSuppressed(callbackCancellation)
         }
-      } else {
+      }
+      throw throwable
+    } finally {
+      try {
+        notifyFinished(state)
+      } catch (finishedError: CancellationException) {
+        if (primaryError is CancellationException) {
+          primaryError.addSuppressed(finishedError)
+        } else {
+          throw finishedError
+        }
+      }
+    }
+  }
+
+  private suspend fun runWithTotalTimeout(state: ExecutionState): ExecutionResult<T> {
+    if (spec.config.totalTimeoutMs == 0L) return runLoop(state)
+
+    return try {
+      withTimeout(spec.config.totalTimeoutMs) {
         runLoop(state)
       }
-    } catch (t: TimeoutCancellationException) {
-      invokeTimeout(state)
+    } catch (throwable: TimeoutCancellationException) {
+      if (!currentCoroutineContext().isActive) throw throwable
+      ExecutionResult.Timeout(state.metrics())
     }
   }
 
-  private suspend fun runLoop(state: ExecutionState): TaskResult<T> {
-    delay(spec.config.initialDelayMs)
+  private suspend fun runLoop(state: ExecutionState): ExecutionResult<T> {
+    if (spec.config.initialDelayMs > 0) {
+      state.phase = ExecutionPhase.INITIAL_DELAY
+      delay(spec.config.initialDelayMs)
+    }
 
-    while (true) {
-      val attemptStart = nanoMillis
-      when (val attemptResult = runAttempt(state, attemptStart)) {
-        is AttemptResult.Complete -> return attemptResult.result
-        AttemptResult.Continue -> Unit
-      }
-
-      if (state.executionCount >= spec.config.maxAttempts) {
-        return invokeExhausted(state, attemptStart)
+    while (state.executionCount < spec.config.maxAttempts) {
+      if (state.executionCount > 0) {
+        runRetryPreparation(state)?.let { return it }
       }
 
       state.executionCount++
+      runAttempt(state)?.let { return it }
+    }
+
+    return ExecutionResult.Exhausted(state.lastThrowable, state.metrics())
+  }
+
+  private suspend fun runRetryPreparation(state: ExecutionState): ExecutionResult.Failure? {
+    state.attemptStartNano = null
+    state.attemptEndNano = null
+    if (spec.config.retryIntervalMs > 0) {
+      state.phase = ExecutionPhase.RETRY_DELAY
       delay(spec.config.retryIntervalMs)
     }
+
+    state.phase = ExecutionPhase.BEFORE_RETRY
+    val context = RetryContext(
+      nextAttempt = state.executionCount + 1,
+      previousFailure = state.lastThrowable,
+      metrics = state.metrics(),
+    )
+    return try {
+      spec.beforeRetry?.invoke(context)
+      null
+    } catch (throwable: CancellationException) {
+      if (!canHandleAsStepFailure(throwable)) throw throwable
+      ExecutionResult.Failure(throwable, state.metrics())
+    } catch (throwable: Throwable) {
+      val attempt = ExecutionAttempt(state.metrics(), throwable)
+      observeLegacy(ObserverSource.ON_ATTEMPT_FAILURE, attempt.metrics) {
+        spec.legacyAttemptFailure?.invoke(attempt)
+      }
+      ExecutionResult.Failure(throwable, state.metrics())
+    }
   }
 
-  private suspend fun runAttempt(
-    state: ExecutionState,
-    attemptStart: Long,
-  ): AttemptResult<T> {
-    var shouldRunSupplier = true
+  private suspend fun runAttempt(state: ExecutionState): ExecutionResult<T>? {
+    state.phase = ExecutionPhase.ATTEMPT
+    state.attemptStartNano = nanoMillis
+    state.attemptEndNano = null
 
-    if (state.executionCount > 1) {
+    val data = try {
+      spec.supplier()
+    } catch (throwable: CancellationException) {
+      if (!currentCoroutineContext().isActive) throw throwable
+      if (throwable !is TimeoutCancellationException) throw throwable
+      return handleAttemptFailure(state, throwable)
+    } catch (throwable: Throwable) {
+      return handleAttemptFailure(state, throwable)
+    }
+
+    state.attemptEndNano = nanoMillis
+    state.lastThrowable = null
+    val attempt = ExecutionAttempt(state.metrics(), data)
+    notifyAttemptSuccess(attempt)
+
+    if (spec.mode == ExecutionMode.RETRY) {
+      return ExecutionResult.Success(data, attempt.metrics)
+    }
+
+    state.phase = ExecutionPhase.STOP_CONDITION
+    val stopAttempt = ExecutionAttempt(state.metrics(), data)
+    return try {
+      val shouldStop = spec.stopConditions.any { condition -> condition.matches(data, stopAttempt) }
+      if (shouldStop) {
+        ExecutionResult.Success(data, state.metrics())
+      } else {
+        null
+      }
+    } catch (throwable: CancellationException) {
+      if (!canHandleAsStepFailure(throwable)) throw throwable
+      ExecutionResult.Failure(throwable, state.metrics())
+    } catch (throwable: Throwable) {
+      ExecutionResult.Failure(throwable, state.metrics())
+    }
+  }
+
+  private suspend fun handleAttemptFailure(
+    state: ExecutionState,
+    throwable: Throwable,
+  ): ExecutionResult.Failure? {
+    state.attemptEndNano = nanoMillis
+    state.lastThrowable = throwable
+    val attempt = ExecutionAttempt(state.metrics(), throwable)
+    notifyAttemptFailure(attempt)
+
+    val abortFailure = evaluateAbortConditions(throwable)
+    return when {
+      abortFailure != null -> ExecutionResult.Failure(abortFailure, state.metrics())
+      usesLegacyFailureRules() -> {
+        evaluateLegacyFailureRules(throwable, attempt)?.let { legacyFailure ->
+          ExecutionResult.Failure(legacyFailure, state.metrics())
+        }
+      }
+
+      else -> null
+    }
+  }
+
+  private fun evaluateAbortConditions(
+    throwable: Throwable,
+  ): Throwable? {
+    for (condition in spec.abortConditions) {
+      if (!condition.accepts(throwable)) continue
       try {
-        spec.beforeRetry?.invoke(ExecutionResult(state.metrics(attemptStart, attemptStart), Unit))
-      } catch (t: Throwable) {
-        val result = ExecutionResult(state.metrics(attemptStart, nanoMillis), t)
-        if (handleFailure(state, t, result)) return AttemptResult.Complete(TaskResult.Failure(result))
-        shouldRunSupplier = false
+        if (condition.matches(throwable)) return throwable
+      } catch (ruleError: Throwable) {
+        ruleError.addSuppressed(throwable)
+        return ruleError
       }
     }
+    return null
+  }
 
-    if (!shouldRunSupplier) return AttemptResult.Continue
+  private fun usesLegacyFailureRules(): Boolean {
+    return spec.legacyFailConditions.isNotEmpty() || spec.legacyFailFallback != null
+  }
 
-    try {
-      val processData = spec.supplier()
-      val info = ExecutionResult(state.metrics(attemptStart, nanoMillis), processData)
-      spec.result?.invoke(info)
+  private suspend fun canHandleAsStepFailure(throwable: CancellationException): Boolean {
+    return throwable is TimeoutCancellationException && currentCoroutineContext().isActive
+  }
 
-      if (shouldStop(processData, info)) {
-        return AttemptResult.Complete(TaskResult.Success(info))
+  private suspend fun evaluateLegacyFailureRules(
+    throwable: Throwable,
+    attempt: ExecutionAttempt<Throwable>,
+  ): Throwable? {
+    val matchingConditions = spec.legacyFailConditions.filter { it.accepts(throwable) }
+    return try {
+      val shouldAbort = if (matchingConditions.isNotEmpty()) {
+        matchingConditions.any { it.matches(attempt) }
+      } else {
+        spec.legacyFailFallback?.invoke(attempt) ?: false
       }
-    } catch (t: Throwable) {
-      val result = ExecutionResult(state.metrics(attemptStart, nanoMillis), t)
-      if (handleFailure(state, t, result)) return AttemptResult.Complete(TaskResult.Failure(result))
+      throwable.takeIf { shouldAbort }
+    } catch (cancellation: CancellationException) {
+      throw cancellation
+    } catch (ruleError: Throwable) {
+      ruleError.addSuppressed(throwable)
+      ruleError
     }
-
-    return AttemptResult.Continue
   }
 
-  private suspend fun shouldStop(data: T, result: ExecutionResult<T>): Boolean {
-    if (spec.stopWhenExecutions.isEmpty()) return true
-
-    return spec.stopWhenExecutions.any { it.matches(data as Any, result) }
-  }
-
-  private suspend fun invokeExhausted(
-    state: ExecutionState,
-    attemptStart: Long,
-  ): TaskResult<Nothing> {
-    val metrics = state.metrics(attemptStart, nanoMillis)
-    try {
-      spec.exhausted?.invoke(ExecutionResult(metrics, Unit))
-    } catch (t: Throwable) {
-      val result = ExecutionResult(metrics, t)
-      if (handleFailure(state, t, result)) return TaskResult.Failure(result)
+  private suspend fun notifyAttemptSuccess(attempt: ExecutionAttempt<T>) {
+    observe(ObserverSource.ON_ATTEMPT_SUCCESS, attempt.metrics) {
+      spec.onAttemptSuccess?.invoke(attempt)
     }
-    return TaskResult.Exhausted(metrics)
+    observeLegacy(ObserverSource.ON_ATTEMPT_SUCCESS, attempt.metrics) {
+      spec.legacyAttemptSuccess?.invoke(attempt)
+    }
   }
 
-  private suspend fun invokeTimeout(state: ExecutionState): TaskResult.Timeout {
-    val nanoEnd = nanoMillis
-    val metrics = state.metrics(nanoEnd, nanoEnd)
-    spec.timeout?.invoke(ExecutionResult(metrics, Unit))
-    return TaskResult.Timeout(metrics)
+  private suspend fun notifyAttemptFailure(attempt: ExecutionAttempt<Throwable>) {
+    observe(ObserverSource.ON_ATTEMPT_FAILURE, attempt.metrics) {
+      spec.onAttemptFailure?.invoke(attempt)
+    }
+    observeLegacy(ObserverSource.ON_ATTEMPT_FAILURE, attempt.metrics) {
+      spec.legacyAttemptFailure?.invoke(attempt)
+    }
   }
 
-  private suspend fun invokeCancel(state: ExecutionState) {
-    val nanoEnd = nanoMillis
-    spec.cancel?.invoke(ExecutionResult(state.metrics(nanoEnd, nanoEnd), Unit))
+  private suspend fun notifyTerminal(result: ExecutionResult<T>) {
+    when (result) {
+      is ExecutionResult.Success -> {
+        observe(ObserverSource.ON_SUCCESS, result.metrics) { spec.onSuccess?.invoke(result) }
+      }
+
+      is ExecutionResult.Failure -> {
+        observe(ObserverSource.ON_FAILURE, result.metrics) { spec.onFailure?.invoke(result) }
+      }
+
+      is ExecutionResult.Exhausted -> {
+        observe(ObserverSource.ON_EXHAUSTED, result.metrics) { spec.onExhausted?.invoke(result) }
+        observeLegacy(ObserverSource.ON_EXHAUSTED, result.metrics) {
+          spec.legacyExhausted?.invoke(ExecutionAttempt(result.metrics, Unit))
+        }
+      }
+
+      is ExecutionResult.Timeout -> {
+        observe(ObserverSource.ON_TIMEOUT, result.metrics) { spec.onTimeout?.invoke(result) }
+        observeLegacy(ObserverSource.ON_TIMEOUT, result.metrics) {
+          spec.legacyTimeout?.invoke(ExecutionAttempt(result.metrics, Unit))
+        }
+      }
+    }
   }
 
-  private suspend fun invokeFinally(state: ExecutionState) {
+  private suspend fun notifyCancel(state: ExecutionState) {
+    val metrics = state.metrics()
     withContext(NonCancellable) {
-      // 这里的挂起代码即使协程被取消，也会执行完成
-      val nanoEnd = nanoMillis
-      spec.finally?.invoke(ExecutionResult(state.metrics(nanoEnd, nanoEnd), Unit))
+      observe(ObserverSource.ON_CANCEL, metrics) { spec.onCancel?.invoke(metrics) }
+      observeLegacy(ObserverSource.ON_CANCEL, metrics) {
+        spec.legacyCancel?.invoke(ExecutionAttempt(metrics, Unit))
+      }
     }
   }
 
-  private fun ExecutionState.metrics(start: Long, end: Long): ExecutionMetrics {
+  private suspend fun notifyFinished(state: ExecutionState) {
+    val metrics = state.metrics()
+    withContext(NonCancellable) {
+      observe(ObserverSource.ON_FINISHED, metrics) { spec.onFinished?.invoke(metrics) }
+      observeLegacy(ObserverSource.ON_FINISHED, metrics) {
+        spec.legacyFinished?.invoke(ExecutionAttempt(metrics, Unit))
+      }
+    }
+  }
+
+  private fun observe(
+    source: ObserverSource,
+    metrics: ExecutionMetrics,
+    block: () -> Unit,
+  ) {
+    try {
+      block()
+    } catch (throwable: Throwable) {
+      reportObserverError(ObserverFailure(source, throwable, metrics))
+    }
+  }
+
+  private suspend fun observeLegacy(
+    source: ObserverSource,
+    metrics: ExecutionMetrics,
+    block: suspend () -> Unit,
+  ) {
+    try {
+      block()
+    } catch (cancellation: CancellationException) {
+      throw cancellation
+    } catch (throwable: Throwable) {
+      reportObserverError(ObserverFailure(source, throwable, metrics))
+    }
+  }
+
+  private fun reportObserverError(failure: ObserverFailure) {
+    try {
+      spec.onObserverError?.invoke(failure)
+    } catch (_: Throwable) {
+      // Observer error reporting is deliberately non-recursive.
+    }
+  }
+
+  private fun ExecutionState.metrics(now: Long = nanoMillis): ExecutionMetrics {
+    val attemptStart = attemptStartNano
+    val attemptEnd = attemptEndNano ?: now
     return ExecutionMetrics(
-      executionCount,
-      startTime + (start - startNano),
-      end - start,
-      end - startNano,
+      executionCount = executionCount,
+      attemptStartTime = attemptStart?.let { startTime + (it - startNano) },
+      attemptDuration = attemptStart?.let { attemptEnd - it },
+      totalDuration = now - startNano,
+      phase = phase,
     )
   }
 }

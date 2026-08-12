@@ -1,405 +1,594 @@
 package com.miyako.core
 
-import com.miyako.core.task.TaskResult
+import com.miyako.core.task.AttemptsExhaustedException
+import com.miyako.core.task.ExecutionPhase
+import com.miyako.core.task.ExecutionResult
+import com.miyako.core.task.ObserverSource
 import com.miyako.core.task.TaskRunner
-import kotlinx.coroutines.CoroutineExceptionHandler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.TimeoutCancellationException
+import com.miyako.core.task.TaskTimeoutException
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
-import org.junit.Assert
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.lang.Exception
-import kotlin.random.Random
+import kotlin.coroutines.cancellation.CancellationException
 
+@Suppress("DEPRECATION")
 class TaskRunnerUnitTest {
 
-  private val random = Random(System.currentTimeMillis())
+  @Test
+  fun retry_execute_returns_first_success() = runTest {
+    var attemptCount = 0
 
-  private fun mainJob(): Int {
-    return random.nextInt(0, 100)
+    val data = TaskRunner.retry(maxAttempts = 3) {
+      attemptCount++
+      "done"
+    }.execute()
+
+    assertEquals("done", data)
+    assertEquals(1, attemptCount)
   }
 
-  private fun <T> TaskRunner<T>.logExecution() = apply {
-    result {
-      "${it.executionMetrics}-${it.data}".debugLog()
+  @Test
+  fun retry_retries_unmatched_failure_and_runs_beforeRetry_in_order() = runTest {
+    val failure = IllegalStateException("retry")
+    val events = mutableListOf<String>()
+
+    val result = TaskRunner.retry(maxAttempts = 2, intervalMs = 100) {
+      events += "supplier"
+      if (events.count { it == "supplier" } == 1) throw failure
+      "done"
+    }.onAttemptFailure {
+      events += "attemptFailure"
+    }.beforeRetry { context ->
+      events += "beforeRetry"
+      assertEquals(2, context.nextAttempt)
+      assertSame(failure, context.previousFailure)
+      assertEquals(ExecutionPhase.BEFORE_RETRY, context.metrics.phase)
+      assertNull(context.metrics.attemptStartTime)
+    }.onAttemptSuccess {
+      events += "attemptSuccess"
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Success)
+    assertEquals(
+      listOf("supplier", "attemptFailure", "beforeRetry", "supplier", "attemptSuccess"),
+      events,
+    )
+  }
+
+  @Test
+  fun abortOn_stops_matching_failure_and_execute_rethrows_it() = runTest {
+    val failure = IllegalArgumentException("abort")
+    var attempts = 0
+
+    val thrown = runCatching {
+      TaskRunner.retry(maxAttempts = 3) {
+        attempts++
+        throw failure
+      }.abortOn<IllegalArgumentException>().execute()
+    }.exceptionOrNull()
+
+    assertSame(failure, thrown)
+    assertEquals(1, attempts)
+  }
+
+  @Test
+  fun abortOn_predicate_failure_preserves_attempt_failure_as_suppressed() = runTest {
+    val attemptFailure = IllegalArgumentException("attempt")
+    val ruleFailure = IllegalStateException("rule")
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      throw attemptFailure
+    }.abortOn<IllegalArgumentException> {
+      throw ruleFailure
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(ruleFailure, result.throwable)
+    assertSame(attemptFailure, result.throwable.suppressed.single())
+  }
+
+  @Test
+  fun unmatched_failure_exhausts_with_final_failure() = runTest {
+    val failures = listOf(IllegalStateException("first"), IllegalStateException("last"))
+    var attempt = 0
+
+    val result = TaskRunner.retry(maxAttempts = 2) {
+      throw failures[attempt++]
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Exhausted)
+    result as ExecutionResult.Exhausted
+    assertSame(failures.last(), result.lastThrowable)
+    assertEquals(2, result.metrics.executionCount)
+  }
+
+  @Test
+  fun execute_maps_exhausted_to_exception_with_cause() = runTest {
+    val failure = IllegalStateException("last")
+
+    val thrown = runCatching {
+      TaskRunner.retry(maxAttempts = 1) {
+        throw failure
+      }.execute()
+    }.exceptionOrNull()
+
+    assertTrue(thrown is AttemptsExhaustedException)
+    assertSame(failure, thrown?.cause)
+  }
+
+  @Test
+  fun poll_uses_ordered_or_short_circuit_stop_conditions() = runTest {
+    val conditions = mutableListOf<String>()
+
+    val result = TaskRunner.poll(maxAttempts = 3) {
+      42
+    }.stopWhen<Int> {
+      conditions += "first"
+      false
+    }.stopWhen<Int> {
+      conditions += "second"
+      assertEquals(ExecutionPhase.STOP_CONDITION, it.metrics.phase)
+      true
+    }.stopWhen<Int> {
+      conditions += "third"
+      true
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Success)
+    assertEquals(listOf("first", "second"), conditions)
+  }
+
+  @Test
+  fun poll_without_stopWhen_fails_before_supplier_starts() = runTest {
+    var supplierCalled = false
+    val runner = TaskRunner.poll(maxAttempts = 2) {
+      supplierCalled = true
+      1
+    }
+
+    val error = runCatching { runner.executeResult() }.exceptionOrNull()
+
+    assertTrue(error is IllegalStateException)
+    assertFalse(supplierCalled)
+  }
+
+  @Test
+  fun retry_rejects_stopWhen_immediately() {
+    val error = runCatching {
+      TaskRunner.retry { 1 }.stopWhen<Int> { true }
+    }.exceptionOrNull()
+
+    assertTrue(error is IllegalStateException)
+  }
+
+  @Test
+  fun stopWhen_failure_terminates_without_abortOn_or_retry() = runTest {
+    val conditionFailure = IllegalStateException("condition")
+    var attempts = 0
+    var abortCalled = false
+
+    val result = TaskRunner.poll(maxAttempts = 3) {
+      attempts++
+      1
+    }.stopWhen<Int> {
+      throw conditionFailure
+    }.abortOn<IllegalStateException> {
+      abortCalled = true
+      true
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(conditionFailure, result.throwable)
+    assertEquals(1, attempts)
+    assertFalse(abortCalled)
+  }
+
+  @Test
+  fun poll_exhaustion_after_successful_incomplete_attempt_has_no_failure() = runTest {
+    val result = TaskRunner.poll(maxAttempts = 2) {
+      "pending"
+    }.stopWhen<String> {
+      false
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Exhausted)
+    result as ExecutionResult.Exhausted
+    assertNull(result.lastThrowable)
+  }
+
+  @Test
+  fun beforeRetry_failure_terminates_without_abortOn_or_next_attempt() = runTest {
+    val preparationFailure = IllegalStateException("prepare")
+    var attempts = 0
+    var abortCalled = false
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      attempts++
+      throw IllegalArgumentException("attempt")
     }.beforeRetry {
-      "retry: ${it.executionMetrics}".debugLog()
-    }
-  }
-
-  @Test
-  fun test_execution_stopWhen() = runTest {
-    val result = mutableListOf<Int>()
-    val taskResult = TaskRunner {
-      mainJob()
-    }.stopWhen<Int> {
-      if (it.data < 20) {
-        result.add(it.data)
-        true
-      } else false
-    }.stopWhen<Int> {
-      if (it.data >= 20) {
-        result.add(it.data)
-        true
-      } else false
-    }.logExecution().execute()
-
-    Assert.assertTrue(taskResult is TaskResult.Success)
-    Assert.assertTrue(result.isNotEmpty())
-  }
-
-  @Test
-  fun test_execution_retry() = runTest {
-    val result = mutableListOf<Int>()
-    val taskResult = TaskRunner(maxAttempts = 3) {
-      mainJob()
-    }.stopWhen<Int> {
-      if (it.data > 100) {
-        true
-      } else {
-        result.add(it.data)
-        false
-      }
-    }.logExecution().execute()
-
-    Assert.assertTrue(taskResult is TaskResult.Exhausted)
-    Assert.assertTrue(result.isNotEmpty())
-  }
-
-  @Test
-  fun test_execution_exhausted() = runTest {
-    var exhaustedCall = false
-    val taskResult = TaskRunner(maxAttempts = 3) {
-      mainJob()
-    }.stopWhen<Int> {
-      // 不可能条件
-      it.data > 100
-    }.exhausted {
-      exhaustedCall = true
-    }.logExecution().execute()
-
-    Assert.assertTrue(taskResult is TaskResult.Exhausted)
-    Assert.assertTrue(exhaustedCall)
-  }
-
-  @Test
-  fun test_execution_supplier_fail() = runTest {
-    var failWhenCalled = false
-    val taskResult = TaskRunner {
-      mainJob()
-      throw IllegalStateException("Max")
-    }.stopWhen<Int> {
-      false
-    }.failWhen<Exception> {
-      it.data.message == "Max".apply {
-        failWhenCalled = true
-      }
-    }.logExecution().execute()
-
-    Assert.assertTrue(taskResult is TaskResult.Failure)
-    Assert.assertTrue(failWhenCalled)
-  }
-
-  @Test
-  fun test_execution_failWhen_false_retry_until_exhausted() = runTest {
-    var attemptCount = 0
-    var exhaustedCalled = false
-    val taskResult = TaskRunner(maxAttempts = 3) {
-      attemptCount++
-      throw IllegalStateException("Retry")
-    }.failWhen<IllegalStateException> {
-      false
-    }.exhausted {
-      exhaustedCalled = true
-    }.execute()
-
-    Assert.assertTrue(taskResult is TaskResult.Exhausted)
-    Assert.assertEquals(3, attemptCount)
-    Assert.assertTrue(exhaustedCalled)
-  }
-
-  @Test
-  fun test_execution_failWhen_true_stop_before_exhausted() = runTest {
-    var attemptCount = 0
-    var exhaustedCalled = false
-    val taskResult = TaskRunner(maxAttempts = 3) {
-      attemptCount++
-      throw IllegalStateException("Stop")
-    }.failWhen<IllegalStateException> {
+      throw preparationFailure
+    }.abortOn<IllegalStateException> {
+      abortCalled = true
       true
-    }.exhausted {
-      exhaustedCalled = true
-    }.execute()
+    }.executeResult()
 
-    Assert.assertTrue(taskResult is TaskResult.Failure)
-    Assert.assertEquals(1, attemptCount)
-    Assert.assertFalse(exhaustedCalled)
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(preparationFailure, result.throwable)
+    assertEquals(1, attempts)
+    assertFalse(abortCalled)
   }
 
   @Test
-  fun test_execution_failWhenFallback_handles_unmatched_error() = runTest {
-    var attemptCount = 0
-    var fallbackCalled = false
-    var exhaustedCalled = false
-    val taskResult = TaskRunner(maxAttempts = 3) {
-      attemptCount++
-      throw IllegalArgumentException("Fallback")
-    }.failWhen<IllegalStateException> {
+  fun beforeRetry_owned_timeout_is_failure() = runTest {
+    val result = TaskRunner.retry(maxAttempts = 2) {
+      throw IllegalStateException("retry")
+    }.beforeRetry {
+      withTimeout(1_000) {
+        delay(2_000)
+      }
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertTrue(result.throwable is kotlinx.coroutines.TimeoutCancellationException)
+    assertEquals(ExecutionPhase.BEFORE_RETRY, result.metrics.phase)
+  }
+
+  @Test
+  fun stopWhen_owned_timeout_is_failure() = runTest {
+    val result = TaskRunner.poll(maxAttempts = 2) {
+      1
+    }.stopWhen<Int> {
+      withTimeout(1_000) {
+        delay(2_000)
+      }
       true
-    }.failWhenFallback {
-      fallbackCalled = true
-      false
-    }.exhausted {
-      exhaustedCalled = true
-    }.execute()
+    }.executeResult()
 
-    Assert.assertTrue(taskResult is TaskResult.Exhausted)
-    Assert.assertEquals(3, attemptCount)
-    Assert.assertTrue(fallbackCalled)
-    Assert.assertTrue(exhaustedCalled)
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertTrue(result.throwable is kotlinx.coroutines.TimeoutCancellationException)
+    assertEquals(ExecutionPhase.STOP_CONDITION, result.metrics.phase)
   }
 
   @Test
-  fun test_execution_result_fail() = runTest {
-    var failWhenCalled = false
-    val taskResult = TaskRunner {
-      mainJob()
-    }.result {
-      throw IllegalStateException("Max")
-    }.failWhen<Exception> {
-      it.data.message == "Max".apply {
-        failWhenCalled = true
-      }
-    }.execute()
-
-    Assert.assertTrue(taskResult is TaskResult.Failure)
-    Assert.assertTrue(failWhenCalled)
-  }
-
-  @Test
-  fun test_execution_stopWhen_fail() = runTest {
-    var failWhenCalled = false
-    val taskResult = TaskRunner {
-      mainJob()
-    }.stopWhen<Int> {
-      throw IllegalStateException("Max")
-      false
-    }.failWhen<Exception> {
-      it.data.message == "Max".apply {
-        failWhenCalled = true
-      }
-    }.logExecution().execute()
-
-    Assert.assertTrue(taskResult is TaskResult.Failure)
-    Assert.assertTrue(failWhenCalled)
-  }
-
-  @Test
-  fun test_execution_timeout() = runTest {
+  fun supplier_owned_timeout_is_an_attempt_failure() = runTest {
+    var attemptFailures = 0
     var timeoutCalled = false
-    val taskResult = TaskRunner(0, 500, maxAttempts = 3, timeoutMs = 1000) {
-      mainJob()
-    }.stopWhen<Int> {
-      false
-    }.timeout {
-      timeoutCalled = true
-    }.logExecution().execute()
 
-    Assert.assertTrue(taskResult is TaskResult.Timeout)
-    Assert.assertTrue(timeoutCalled)
+    val result = TaskRunner.retry(maxAttempts = 2, timeoutMs = 5_000) {
+      withTimeout(1_000) {
+        delay(2_000)
+      }
+    }.onAttemptFailure {
+      attemptFailures++
+    }.onTimeout {
+      timeoutCalled = true
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Exhausted)
+    assertEquals(2, attemptFailures)
+    assertFalse(timeoutCalled)
   }
 
   @Test
-  fun test_execution_timeout_cancels_running_supplier() = runTest {
-    var resultCalled = false
-    var timeoutCalled = false
-    val taskResult = TaskRunner(timeoutMs = 1000) {
-      delay(2000)
-      mainJob()
-    }.result {
-      resultCalled = true
-    }.timeout {
-      timeoutCalled = true
-    }.execute()
+  fun total_timeout_maps_to_result_and_exception() = runTest {
+    val result = TaskRunner.retry(timeoutMs = 1_000) {
+      delay(2_000)
+    }.executeResult()
 
-    Assert.assertTrue(taskResult is TaskResult.Timeout)
-    Assert.assertTrue(timeoutCalled)
-    Assert.assertFalse(resultCalled)
-  }
+    assertTrue(result is ExecutionResult.Timeout)
+    result as ExecutionResult.Timeout
+    assertEquals(ExecutionPhase.ATTEMPT, result.metrics.phase)
 
-  @Test
-  fun test_execution_timeout_fail() = runTest {
-    val handlerError = IllegalStateException("Timeout")
-    var throwableCalled = false
-    val error = runCatching {
-      TaskRunner(timeoutMs = 1000) {
-        delay(2000)
-        mainJob()
-      }.timeout {
-        throw handlerError
-      }.throwable {
-        throwableCalled = true
+    val thrown = runCatching {
+      TaskRunner.retry(timeoutMs = 1_000) {
+        delay(2_000)
       }.execute()
     }.exceptionOrNull()
-
-    Assert.assertSame(handlerError, error)
-    Assert.assertFalse(throwableCalled)
+    assertTrue(thrown is TaskTimeoutException)
   }
 
   @Test
-  fun test_execution_supplier_timeout_uses_failure_dsl_before_total_timeout() = runTest {
-    var attemptCount = 0
-    var throwableCount = 0
-    var timeoutCalled = false
-    var exhaustedCalled = false
-    val taskResult = TaskRunner(maxAttempts = 2, timeoutMs = 5000) {
-      attemptCount++
-      withTimeout(1000) {
-        delay(2000)
-      }
-    }.throwable {
-      throwableCount++
-    }.failWhen<TimeoutCancellationException> {
-      false
-    }.timeout {
-      timeoutCalled = true
-    }.exhausted {
-      exhaustedCalled = true
-    }.execute()
+  fun timeout_metrics_identify_initial_delay() = runTest {
+    val result = TaskRunner.retry(delayMs = 2_000, timeoutMs = 1_000) { 1 }.executeResult()
 
-    Assert.assertTrue(taskResult is TaskResult.Exhausted)
-    Assert.assertEquals(2, attemptCount)
-    Assert.assertEquals(2, throwableCount)
-    Assert.assertFalse(timeoutCalled)
-    Assert.assertTrue(exhaustedCalled)
+    assertTrue(result is ExecutionResult.Timeout)
+    result as ExecutionResult.Timeout
+    assertEquals(ExecutionPhase.INITIAL_DELAY, result.metrics.phase)
+    assertEquals(0, result.metrics.executionCount)
+    assertNull(result.metrics.attemptStartTime)
   }
 
   @Test
-  fun test_execution_attempt_start_time_uses_wall_clock() = runTest {
-    val beforeLaunch = System.currentTimeMillis()
-    var attemptStartTime = 0L
-    val taskResult = TaskRunner {
-      mainJob()
-    }.result {
-      attemptStartTime = it.executionMetrics.attemptStartTime
-    }.execute()
+  fun timeout_metrics_identify_retry_delay() = runTest {
+    val result = TaskRunner.retry(maxAttempts = 2, intervalMs = 2_000, timeoutMs = 1_000) {
+      throw IllegalStateException("retry")
+    }.executeResult()
 
-    Assert.assertTrue(taskResult is TaskResult.Success)
-    val afterCompletion = System.currentTimeMillis()
-    Assert.assertTrue(attemptStartTime in beforeLaunch..afterCompletion)
+    assertTrue(result is ExecutionResult.Timeout)
+    result as ExecutionResult.Timeout
+    assertEquals(ExecutionPhase.RETRY_DELAY, result.metrics.phase)
+    assertEquals(1, result.metrics.executionCount)
+    assertNull(result.metrics.attemptStartTime)
   }
 
   @Test
-  fun test_execution_cannot_modify_after_execute() = runTest {
-    val runner = TaskRunner {
-      mainJob()
+  fun timeout_metrics_identify_beforeRetry() = runTest {
+    val result = TaskRunner.retry(maxAttempts = 2, timeoutMs = 1_000) {
+      throw IllegalStateException("retry")
+    }.beforeRetry {
+      delay(2_000)
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Timeout)
+    result as ExecutionResult.Timeout
+    assertEquals(ExecutionPhase.BEFORE_RETRY, result.metrics.phase)
+    assertNull(result.metrics.attemptStartTime)
+  }
+
+  @Test
+  fun timeout_metrics_identify_stop_condition() = runTest {
+    val result = TaskRunner.poll(maxAttempts = 2, timeoutMs = 1_000) {
+      1
     }.stopWhen<Int> {
+      delay(2_000)
       true
-    }
+    }.executeResult()
 
-    runner.execute()
-    val error = runCatching {
-      runner.result {}
+    assertTrue(result is ExecutionResult.Timeout)
+    result as ExecutionResult.Timeout
+    assertEquals(ExecutionPhase.STOP_CONDITION, result.metrics.phase)
+    assertEquals(1, result.metrics.executionCount)
+  }
+
+  @Test
+  fun external_cancellation_notifies_in_order_and_rethrows_same_instance() = runTest {
+    val cancellation = CancellationException("external")
+    val events = mutableListOf<String>()
+
+    val thrown = runCatching {
+      TaskRunner.retry {
+        throw cancellation
+      }.onCancel {
+        events += "cancel"
+      }.onFinished {
+        events += "finished"
+      }.executeResult()
     }.exceptionOrNull()
 
-    Assert.assertTrue(error is IllegalStateException)
+    assertSame(cancellation, thrown)
+    assertEquals(listOf("cancel", "finished"), events)
   }
 
   @Test
-  fun test_execution_cancel_callback_after_execute() = runTest {
-    var cancelCalled = false
-    val runner = TaskRunner {
-      delay(1000)
-      mainJob()
-    }.cancel {
-      cancelCalled = true
-    }
+  fun deprecated_cancel_cancellation_is_suppressed_on_original_cancellation() = runTest {
+    val externalCancellation = CancellationException("external")
+    val callbackCancellation = CancellationException("callback")
 
-    val job = launch {
-      runner.execute()
-    }
+    val thrown = runCatching {
+      TaskRunner {
+        throw externalCancellation
+      }.cancel {
+        throw callbackCancellation
+      }.executeResult()
+    }.exceptionOrNull()
 
-    testScheduler.runCurrent()
-    job.cancel()
-    job.join()
-    Assert.assertTrue(cancelCalled)
+    assertSame(externalCancellation, thrown)
+    val suppressed = thrown?.suppressed?.single()
+    assertTrue(suppressed is CancellationException)
+    assertEquals(callbackCancellation.message, suppressed?.message)
   }
 
   @Test
-  fun test_execution_cancel_fail() = runTest {
-    val handlerError = IllegalStateException("Cancel")
-    var completionError: Throwable? = null
-    val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
-      completionError = throwable
-    }
-    val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler) + exceptionHandler)
-    val runner = TaskRunner {
-      delay(1000)
-      mainJob()
-    }.cancel {
-      throw handlerError
-    }
+  fun success_notifications_follow_contract_order() = runTest {
+    val events = mutableListOf<String>()
 
-    val job = scope.launch {
-      runner.execute()
-    }
-
-    testScheduler.runCurrent()
-    job.cancel()
-    job.join()
-    Assert.assertSame(handlerError, completionError)
-  }
-
-  @Test
-  fun test_execution_beforeRetry_fail() = runTest {
-    var throwableCalled = false
-    val taskResult = TaskRunner(maxAttempts = 2) {
-      mainJob()
+    val result = TaskRunner.poll(maxAttempts = 2) {
+      events += "supplier"
+      1
+    }.onAttemptSuccess {
+      events += "attemptSuccess"
     }.stopWhen<Int> {
+      events += "stopWhen"
+      true
+    }.onSuccess {
+      events += "success"
+    }.onFinished {
+      events += "finished"
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Success)
+    assertEquals(listOf("supplier", "attemptSuccess", "stopWhen", "success", "finished"), events)
+  }
+
+  @Test
+  fun failure_notifications_follow_contract_order() = runTest {
+    val events = mutableListOf<String>()
+
+    val result = TaskRunner.retry(maxAttempts = 2) {
+      events += "supplier"
+      throw IllegalArgumentException("abort")
+    }.onAttemptFailure {
+      events += "attemptFailure"
+    }.abortOn<IllegalArgumentException>().onFailure {
+      events += "failure"
+    }.onFinished {
+      events += "finished"
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    assertEquals(listOf("supplier", "attemptFailure", "failure", "finished"), events)
+  }
+
+  @Test
+  fun exhausted_and_timeout_notifications_run_before_finished() = runTest {
+    val exhaustedEvents = mutableListOf<String>()
+    val exhaustedResult = TaskRunner.retry(maxAttempts = 1) {
+      throw IllegalStateException("exhaust")
+    }.onExhausted {
+      exhaustedEvents += "exhausted"
+    }.onFinished {
+      exhaustedEvents += "finished"
+    }.executeResult()
+
+    val timeoutEvents = mutableListOf<String>()
+    val timeoutResult = TaskRunner.retry(timeoutMs = 1_000) {
+      delay(2_000)
+    }.onTimeout {
+      timeoutEvents += "timeout"
+    }.onFinished {
+      timeoutEvents += "finished"
+    }.executeResult()
+
+    assertTrue(exhaustedResult is ExecutionResult.Exhausted)
+    assertEquals(listOf("exhausted", "finished"), exhaustedEvents)
+    assertTrue(timeoutResult is ExecutionResult.Timeout)
+    assertEquals(listOf("timeout", "finished"), timeoutEvents)
+  }
+
+  @Test
+  fun observer_failures_are_reported_without_changing_success() = runTest {
+    val sources = mutableListOf<ObserverSource>()
+
+    val result = TaskRunner.retry {
+      "done"
+    }.onAttemptSuccess {
+      throw IllegalStateException("attempt observer")
+    }.onSuccess {
+      throw CancellationException("success observer")
+    }.onFinished {
+      throw IllegalStateException("finished observer")
+    }.onObserverError {
+      sources += it.source
+      if (it.source == ObserverSource.ON_SUCCESS) throw IllegalStateException("reporter")
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Success)
+    assertEquals(
+      listOf(
+        ObserverSource.ON_ATTEMPT_SUCCESS,
+        ObserverSource.ON_SUCCESS,
+        ObserverSource.ON_FINISHED,
+      ),
+      sources,
+    )
+  }
+
+  @Test
+  fun configuration_rejects_mixed_new_and_legacy_apis_immediately() {
+    val failureRuleError = runCatching {
+      TaskRunner.retry { 1 }
+        .abortOn<IllegalStateException>()
+        .failWhen<IllegalStateException> { true }
+    }.exceptionOrNull()
+    val observerError = runCatching {
+      TaskRunner.retry { 1 }
+        .result {}
+        .onAttemptSuccess {}
+    }.exceptionOrNull()
+
+    assertTrue(failureRuleError is IllegalStateException)
+    assertTrue(observerError is IllegalStateException)
+  }
+
+  @Test
+  fun deprecated_constructor_preserves_poll_behavior() = runTest {
+    var attempts = 0
+
+    val result = TaskRunner(maxAttempts = 3) {
+      ++attempts
+    }.stopWhen<Int> {
+      it.data == 2
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Success)
+    result as ExecutionResult.Success
+    assertEquals(2, result.data)
+    assertEquals(2, attempts)
+  }
+
+  @Test
+  fun deprecated_observer_failure_is_isolated_but_cancellation_propagates() = runTest {
+    val sources = mutableListOf<ObserverSource>()
+    val successful = TaskRunner {
+      1
+    }.result {
+      throw IllegalStateException("legacy observer")
+    }.onObserverError {
+      sources += it.source
+    }.executeResult()
+
+    assertTrue(successful is ExecutionResult.Success)
+    assertEquals(listOf(ObserverSource.ON_ATTEMPT_SUCCESS), sources)
+
+    val cancellation = CancellationException("legacy cancellation")
+    val thrown = runCatching {
+      TaskRunner {
+        1
+      }.result {
+        throw cancellation
+      }.executeResult()
+    }.exceptionOrNull()
+    assertSame(cancellation, thrown)
+  }
+
+  @Test
+  fun deprecated_beforeRetry_failure_notifies_throwable_and_terminates() = runTest {
+    val preparationFailure = IllegalStateException("prepare")
+    val events = mutableListOf<String>()
+
+    val result = TaskRunner(maxAttempts = 2) {
+      events += "supplier"
+      throw IllegalArgumentException("attempt")
+    }.throwable {
+      events += "throwable:${it.data.message}"
+    }.failWhen<IllegalArgumentException> {
       false
     }.beforeRetry {
-      throw IllegalStateException("Before")
-    }.throwable {
-      throwableCalled = it.data.message == "Before"
-    }.execute()
+      throw preparationFailure
+    }.executeResult()
 
-    Assert.assertTrue(taskResult is TaskResult.Exhausted)
-    Assert.assertTrue(throwableCalled)
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(preparationFailure, result.throwable)
+    assertEquals(listOf("supplier", "throwable:attempt", "throwable:prepare"), events)
   }
 
   @Test
-  fun test_execution_finally_fail() = runTest {
-    val handlerError = IllegalStateException("Finally")
-    val error = runCatching {
-      TaskRunner {
-        mainJob()
-      }.stopWhen<Int> {
-        true
-      }.finally {
-        throw handlerError
-      }.execute()
-    }.exceptionOrNull()
+  fun runner_is_one_shot_and_rejects_changes_after_execution() = runTest {
+    val runner = TaskRunner.retry { 1 }
+    assertEquals(1, runner.execute())
 
-    Assert.assertTrue(error is IllegalStateException)
-    Assert.assertEquals(handlerError.message, error?.message)
+    val executionError = runCatching { runner.executeResult() }.exceptionOrNull()
+    val configurationError = runCatching { runner.onSuccess {} }.exceptionOrNull()
+
+    assertTrue(executionError is IllegalStateException)
+    assertTrue(configurationError is IllegalStateException)
   }
 
   @Test
-  fun test_execution_throwable_fail() = runTest {
-    val handlerError = IllegalStateException("Handler")
-    val error = runCatching {
-      TaskRunner {
-        throw IllegalStateException("Max")
-      }.throwable {
-        throw handlerError
-      }.execute()
-    }.exceptionOrNull()
-
-    Assert.assertSame(handlerError, error)
+  fun configuration_values_are_validated_at_construction() {
+    assertTrue(
+      runCatching { TaskRunner.retry(delayMs = -1) { 1 } }.exceptionOrNull() is IllegalArgumentException,
+    )
+    assertTrue(
+      runCatching { TaskRunner.retry(intervalMs = -1) { 1 } }.exceptionOrNull() is IllegalArgumentException,
+    )
+    assertTrue(
+      runCatching { TaskRunner.retry(maxAttempts = 0) { 1 } }.exceptionOrNull() is IllegalArgumentException,
+    )
+    assertTrue(
+      runCatching { TaskRunner.retry(timeoutMs = -1) { 1 } }.exceptionOrNull() is IllegalArgumentException,
+    )
   }
 }
