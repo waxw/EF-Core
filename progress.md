@@ -67,3 +67,21 @@
 | What's the goal? | 完成 EF-Core Issue #36 |
 | What have I learned? | 见 findings.md |
 | What have I done? | 见上方日志 |
+
+## Session: 2026-08-13
+
+### Phase 6: API 命名与重试策略完善
+- **Status:** implementation complete; verification pending
+- Actions taken:
+  - 将 `TaskRunner.retry`/`poll` 的 `delayMs` 参数改为 `initialDelayMs`。
+  - 新增 `retryOn<E>` 白名单策略；多个条件使用 OR 语义，`abortOn` 优先。
+  - 将 `stopWhen`、内部条件模型和错误消息统一改为 `completeWhen`。
+  - 将 `ExecutionPhase.STOP_CONDITION` 改为 `COMPLETION_CONDITION`。
+  - 新增 `retryOn` 匹配、未匹配、predicate 控制、与 `abortOn` 冲突及 predicate 异常测试。
+  - 提交 `6ee88e0 Add TaskRunner retry conditions`。
+  - 提交 `e58c682 Rename TaskRunner completion condition`。
+
+### Verification
+- `git diff --check` 已通过。
+- 已扫描 `core`、`app`、`ksp`，当前代码与测试无 `delayMs`、`stopWhen`、`STOP_CONDITION` 残留。
+- 尚未重新运行 `./gradlew :core:testDebugUnitTest`；2026-08-12 的 41/41 结果仅作为变更前基线。
