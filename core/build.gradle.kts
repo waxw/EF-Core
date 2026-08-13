@@ -10,7 +10,7 @@ plugins {
 
 val gavGroupId = "io.github.waxw"
 val gavArtifactId = "core"
-val gavVersion = "0.0.5"
+val gavVersion = "0.0.5-SNAPSHOT"
 
 android {
   namespace = "com.miyako.core"

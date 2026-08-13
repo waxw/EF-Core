@@ -8,8 +8,8 @@ plugins {
 }
 
 val gavGroupId = "io.github.waxw"
-val gavArtifactId = "ksp"
-val gavVersion = "0.0.5"
+val gavArtifactId = "core-ksp"
+val gavVersion = "0.0.5-SNAPSHOT"
 
 java {
   sourceCompatibility = JavaVersion.VERSION_17
