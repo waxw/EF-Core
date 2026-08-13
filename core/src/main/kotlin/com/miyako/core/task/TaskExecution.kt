@@ -162,7 +162,10 @@ internal class TaskExecution<T>(
     notifyAttemptFailure(attempt)
 
     val abortFailure = evaluateAbortConditions(throwable)
-    return abortFailure?.let { ExecutionResult.Failure(it, state.metrics()) }
+    if (abortFailure != null) return ExecutionResult.Failure(abortFailure, state.metrics())
+
+    val retryFailure = evaluateRetryConditions(throwable)
+    return retryFailure?.let { ExecutionResult.Failure(it, state.metrics()) }
   }
 
   private fun evaluateAbortConditions(
@@ -178,6 +181,23 @@ internal class TaskExecution<T>(
       }
     }
     return null
+  }
+
+  private fun evaluateRetryConditions(
+    throwable: Throwable,
+  ): Throwable? {
+    if (spec.retryConditions.isEmpty()) return null
+
+    for (condition in spec.retryConditions) {
+      if (!condition.accepts(throwable)) continue
+      try {
+        if (condition.matches(throwable)) return null
+      } catch (ruleError: Throwable) {
+        ruleError.addSuppressed(throwable)
+        return ruleError
+      }
+    }
+    return throwable
   }
 
   private suspend fun canHandleAsStepFailure(throwable: CancellationException): Boolean {

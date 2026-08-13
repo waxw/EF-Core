@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class TaskRunner<T> private constructor(
   private val mode: ExecutionMode,
-  delayMs: Long,
+  initialDelayMs: Long,
   intervalMs: Long,
   maxAttempts: Int,
   timeoutMs: Long,
@@ -20,32 +20,33 @@ class TaskRunner<T> private constructor(
   companion object {
     /** Builds a task that completes on the first successful supplier result. */
     fun <T> retry(
-      delayMs: Long = 0,
+      initialDelayMs: Long = 0,
       intervalMs: Long = 0,
       maxAttempts: Int = 1,
       timeoutMs: Long = 0,
       supplier: suspend () -> T,
     ): TaskRunner<T> {
-      return TaskRunner(ExecutionMode.RETRY, delayMs, intervalMs, maxAttempts, timeoutMs, supplier)
+      return TaskRunner(ExecutionMode.RETRY, initialDelayMs, intervalMs, maxAttempts, timeoutMs, supplier)
     }
 
     /** Builds a polling task that repeats until a [stopWhen] condition succeeds. */
     fun <T> poll(
       maxAttempts: Int,
-      delayMs: Long = 0,
+      initialDelayMs: Long = 0,
       intervalMs: Long = 0,
       timeoutMs: Long = 0,
       supplier: suspend () -> T,
     ): TaskRunner<T> {
-      return TaskRunner(ExecutionMode.POLL, delayMs, intervalMs, maxAttempts, timeoutMs, supplier)
+      return TaskRunner(ExecutionMode.POLL, initialDelayMs, intervalMs, maxAttempts, timeoutMs, supplier)
     }
   }
 
-  private val config = ExecutionConfig(delayMs, intervalMs, maxAttempts, timeoutMs)
+  private val config = ExecutionConfig(initialDelayMs, intervalMs, maxAttempts, timeoutMs)
   private val executed = AtomicBoolean(false)
   private val configurationLock = Any()
   private val stopConditions = mutableListOf<StopWhenCondition<*>>()
   private val abortConditions = mutableListOf<AbortCondition<out Throwable>>()
+  private val retryConditions = mutableListOf<RetryCondition<out Throwable>>()
 
   private var beforeRetry: (suspend (RetryContext) -> Unit)? = null
   private var onAttemptSuccess: ((ExecutionAttempt<T>) -> Unit)? = null
@@ -72,6 +73,11 @@ class TaskRunner<T> private constructor(
   inline fun <reified E : Throwable> abortOn(
     noinline predicate: (E) -> Boolean = { true },
   ): TaskRunner<T> = addAbortCondition(AbortCondition(E::class, predicate))
+
+  /** Restricts retries to failures accepted by at least one retry condition. [abortOn] takes precedence. */
+  inline fun <reified E : Throwable> retryOn(
+    noinline predicate: (E) -> Boolean = { true },
+  ): TaskRunner<T> = addRetryCondition(RetryCondition(E::class, predicate))
 
   fun beforeRetry(block: suspend (RetryContext) -> Unit): TaskRunner<T> = configure {
     beforeRetry = block
@@ -124,6 +130,11 @@ class TaskRunner<T> private constructor(
     abortConditions.add(condition)
   }
 
+  @PublishedApi
+  internal fun <E : Throwable> addRetryCondition(condition: RetryCondition<E>): TaskRunner<T> = configure {
+    retryConditions.add(condition)
+  }
+
   /**
    * Executes this runner and returns its successful data.
    *
@@ -160,6 +171,7 @@ class TaskRunner<T> private constructor(
       supplier = supplier ?: error("TaskRunner must have supplier"),
       stopConditions = stopConditions.toList(),
       abortConditions = abortConditions.toList(),
+      retryConditions = retryConditions.toList(),
       beforeRetry = beforeRetry,
       onAttemptSuccess = onAttemptSuccess,
       onAttemptFailure = onAttemptFailure,
@@ -177,6 +189,7 @@ class TaskRunner<T> private constructor(
     supplier = null
     stopConditions.clear()
     abortConditions.clear()
+    retryConditions.clear()
     beforeRetry = null
     onAttemptSuccess = null
     onAttemptFailure = null

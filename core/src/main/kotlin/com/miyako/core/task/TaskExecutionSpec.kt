@@ -11,6 +11,7 @@ internal data class TaskExecutionSpec<T>(
   val supplier: suspend () -> T,
   val stopConditions: List<StopWhenCondition<*>>,
   val abortConditions: List<AbortCondition<out Throwable>>,
+  val retryConditions: List<RetryCondition<out Throwable>>,
   val beforeRetry: (suspend (RetryContext) -> Unit)?,
   val onAttemptSuccess: ((ExecutionAttempt<T>) -> Unit)?,
   val onAttemptFailure: ((ExecutionAttempt<Throwable>) -> Unit)?,

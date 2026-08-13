@@ -23,3 +23,14 @@ internal class AbortCondition<T : Throwable>(
   @Suppress("UNCHECKED_CAST")
   fun matches(throwable: Throwable): Boolean = predicate(throwable as T)
 }
+
+@PublishedApi
+internal class RetryCondition<T : Throwable>(
+  private val type: KClass<T>,
+  private val predicate: (T) -> Boolean,
+) {
+  fun accepts(throwable: Throwable): Boolean = type.isInstance(throwable)
+
+  @Suppress("UNCHECKED_CAST")
+  fun matches(throwable: Throwable): Boolean = predicate(throwable as T)
+}

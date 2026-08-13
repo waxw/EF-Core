@@ -94,6 +94,87 @@ class TaskRunnerUnitTest {
   }
 
   @Test
+  fun retryOn_retries_only_matching_failures() = runTest {
+    var attempts = 0
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      attempts++
+      if (attempts == 1) throw IllegalStateException("retry")
+      "done"
+    }.retryOn<IllegalStateException>().executeResult()
+
+    assertTrue(result is ExecutionResult.Success)
+    assertEquals(2, attempts)
+  }
+
+  @Test
+  fun retryOn_stops_unmatched_failure() = runTest {
+    val failure = IllegalArgumentException("stop")
+    var attempts = 0
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      attempts++
+      throw failure
+    }.retryOn<IllegalStateException>().executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(failure, result.throwable)
+    assertEquals(1, attempts)
+  }
+
+  @Test
+  fun retryOn_predicate_controls_matching_failure() = runTest {
+    val failure = IllegalStateException("stop")
+    var attempts = 0
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      attempts++
+      throw failure
+    }.retryOn<IllegalStateException> { throwable ->
+      throwable.message == "retry"
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(failure, result.throwable)
+    assertEquals(1, attempts)
+  }
+
+  @Test
+  fun abortOn_takes_precedence_over_retryOn() = runTest {
+    val failure = IllegalStateException("abort")
+    var attempts = 0
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      attempts++
+      throw failure
+    }.retryOn<IllegalStateException>().abortOn<IllegalStateException>().executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(failure, result.throwable)
+    assertEquals(1, attempts)
+  }
+
+  @Test
+  fun retryOn_predicate_failure_preserves_attempt_failure_as_suppressed() = runTest {
+    val attemptFailure = IllegalArgumentException("attempt")
+    val ruleFailure = IllegalStateException("rule")
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      throw attemptFailure
+    }.retryOn<IllegalArgumentException> {
+      throw ruleFailure
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(ruleFailure, result.throwable)
+    assertSame(attemptFailure, result.throwable.suppressed.single())
+  }
+
+  @Test
   fun unmatched_failure_exhausts_with_final_failure() = runTest {
     val failures = listOf(IllegalStateException("first"), IllegalStateException("last"))
     var attempt = 0
@@ -299,7 +380,7 @@ class TaskRunnerUnitTest {
 
   @Test
   fun timeout_metrics_identify_initial_delay() = runTest {
-    val result = TaskRunner.retry(delayMs = 2_000, timeoutMs = 1_000) { 1 }.executeResult()
+    val result = TaskRunner.retry(initialDelayMs = 2_000, timeoutMs = 1_000) { 1 }.executeResult()
 
     assertTrue(result is ExecutionResult.Timeout)
     result as ExecutionResult.Timeout
@@ -479,7 +560,7 @@ class TaskRunnerUnitTest {
   @Test
   fun configuration_values_are_validated_at_construction() {
     assertTrue(
-      runCatching { TaskRunner.retry(delayMs = -1) { 1 } }.exceptionOrNull() is IllegalArgumentException,
+      runCatching { TaskRunner.retry(initialDelayMs = -1) { 1 } }.exceptionOrNull() is IllegalArgumentException,
     )
     assertTrue(
       runCatching { TaskRunner.retry(intervalMs = -1) { 1 } }.exceptionOrNull() is IllegalArgumentException,
