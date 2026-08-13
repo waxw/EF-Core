@@ -18,19 +18,20 @@
 - Actions taken:
   - 已整理 Issue #36 行为清单。
   - 补读交接中指定的历史设计对话，确认入口、一次性冻结和职责边界。
-  - 确定新旧回调对应关系、metrics 阶段规则和异常传播边界。
+  - 确定新回调、metrics 阶段规则和异常传播边界。
 
 ### Phase 3: 实现
 - **Status:** complete
 - Actions taken:
   - 实现 retry/poll、ExecutionAttempt/ExecutionResult、异常映射和配置校验。
   - 实现共享 TaskExecution 状态机、五阶段 metrics、取消/总超时/attempt timeout 区分。
-  - 实现同步观察器错误隔离和 0.0.5 废弃兼容 API。
+  - 实现同步观察器错误隔离。
+  - 按用户决定删除 0.0.5 废弃兼容 API、字段及运行时分支。
 
 ### Phase 4: 公开行为测试
 - **Status:** complete
 - Actions taken:
-  - 通过 TaskRunnerUnitTest 覆盖 retry/poll、四种终态、beforeRetry、取消、timeout phase、观察顺序和兼容行为。
+  - 通过 TaskRunnerUnitTest 覆盖 retry/poll、四种终态、beforeRetry、取消、timeout phase 和观察顺序。
 
 ### Phase 5: 验证与审查
 - **Status:** complete
@@ -38,7 +39,7 @@
   - 已启动 standards/spec 两轴只读审查。
   - standards 轴的公共类型文件与无用参数问题已修正。
   - spec 轴的配置冻结竞态、legacy beforeRetry 通知、控制步骤 timeout 分类与终态顺序测试已修正。
-  - 剩余明确风险为旧 `ExecutionResult` 显式类型注解与新同名 sealed 类型的规格冲突。
+  - 已明确不承诺旧 `ExecutionResult` 或 0.0.5 API 的源码兼容。
   - 已向用户请求运行 Gradle 单测的确认。
   - 用户批准后运行 `./gradlew :core:testDebugUnitTest`，构建成功。
   - 最终测试结果：TaskRunnerUnitTest 32/32、core 全部 41/41，无 failure/error/skipped。

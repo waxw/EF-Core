@@ -8,29 +8,15 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Use [retry] for tasks where the first successful supplier result is terminal, or [poll] for
  * tasks that require an explicit [stopWhen] completion condition. The runner inherits the caller's
  * coroutine context and never creates or owns a scope, job, or dispatcher.
- * Deprecated construction and callback APIs are retained for 0.0.5 compatibility and are planned
- * for removal in the next major version.
  */
 class TaskRunner<T> private constructor(
-  private val requestedMode: ExecutionMode?,
+  private val mode: ExecutionMode,
   delayMs: Long,
   intervalMs: Long,
   maxAttempts: Int,
   timeoutMs: Long,
   private var supplier: (suspend () -> T)?,
 ) {
-  @Deprecated(
-    message = "Use TaskRunner.retry(...) or TaskRunner.poll(...)",
-    replaceWith = ReplaceWith("TaskRunner.retry(delayMs, intervalMs, maxAttempts, timeoutMs, supplier)"),
-  )
-  constructor(
-    delayMs: Long = 0,
-    intervalMs: Long = 0,
-    maxAttempts: Int = 1,
-    timeoutMs: Long = 0,
-    supplier: suspend () -> T,
-  ) : this(null, delayMs, intervalMs, maxAttempts, timeoutMs, supplier)
-
   companion object {
     /** Builds a task that completes on the first successful supplier result. */
     fun <T> retry(
@@ -60,11 +46,7 @@ class TaskRunner<T> private constructor(
   private val configurationLock = Any()
   private val stopConditions = mutableListOf<StopWhenCondition<*>>()
   private val abortConditions = mutableListOf<AbortCondition<out Throwable>>()
-  private val legacyFailConditions = mutableListOf<LegacyFailCondition<out Throwable>>()
 
-  private var usesAbortApi = false
-  private var usesLegacyFailureApi = false
-  private var legacyFailFallback: (suspend (ExecutionAttempt<Throwable>) -> Boolean)? = null
   private var beforeRetry: (suspend (RetryContext) -> Unit)? = null
   private var onAttemptSuccess: ((ExecutionAttempt<T>) -> Unit)? = null
   private var onAttemptFailure: ((ExecutionAttempt<Throwable>) -> Unit)? = null
@@ -75,12 +57,6 @@ class TaskRunner<T> private constructor(
   private var onCancel: ((ExecutionMetrics) -> Unit)? = null
   private var onFinished: ((ExecutionMetrics) -> Unit)? = null
   private var onObserverError: ((ObserverFailure) -> Unit)? = null
-  private var legacyAttemptSuccess: (suspend (ExecutionAttempt<T>) -> Unit)? = null
-  private var legacyAttemptFailure: (suspend (ExecutionAttempt<Throwable>) -> Unit)? = null
-  private var legacyExhausted: (suspend (ExecutionAttempt<Unit>) -> Unit)? = null
-  private var legacyTimeout: (suspend (ExecutionAttempt<Unit>) -> Unit)? = null
-  private var legacyCancel: (suspend (ExecutionAttempt<Unit>) -> Unit)? = null
-  private var legacyFinished: (suspend (ExecutionAttempt<Unit>) -> Unit)? = null
 
   private fun configure(block: () -> Unit): TaskRunner<T> = apply {
     synchronized(configurationLock) {
@@ -102,12 +78,10 @@ class TaskRunner<T> private constructor(
   }
 
   fun onAttemptSuccess(observer: (ExecutionAttempt<T>) -> Unit): TaskRunner<T> = configure {
-    check(legacyAttemptSuccess == null) { "Cannot mix onAttemptSuccess with deprecated result" }
     onAttemptSuccess = observer
   }
 
   fun onAttemptFailure(observer: (ExecutionAttempt<Throwable>) -> Unit): TaskRunner<T> = configure {
-    check(legacyAttemptFailure == null) { "Cannot mix onAttemptFailure with deprecated throwable" }
     onAttemptFailure = observer
   }
 
@@ -120,22 +94,18 @@ class TaskRunner<T> private constructor(
   }
 
   fun onExhausted(observer: (ExecutionResult.Exhausted) -> Unit): TaskRunner<T> = configure {
-    check(legacyExhausted == null) { "Cannot mix onExhausted with deprecated exhausted" }
     onExhausted = observer
   }
 
   fun onTimeout(observer: (ExecutionResult.Timeout) -> Unit): TaskRunner<T> = configure {
-    check(legacyTimeout == null) { "Cannot mix onTimeout with deprecated timeout" }
     onTimeout = observer
   }
 
   fun onCancel(observer: (ExecutionMetrics) -> Unit): TaskRunner<T> = configure {
-    check(legacyCancel == null) { "Cannot mix onCancel with deprecated cancel" }
     onCancel = observer
   }
 
   fun onFinished(observer: (ExecutionMetrics) -> Unit): TaskRunner<T> = configure {
-    check(legacyFinished == null) { "Cannot mix onFinished with deprecated finally" }
     onFinished = observer
   }
 
@@ -143,81 +113,15 @@ class TaskRunner<T> private constructor(
     onObserverError = observer
   }
 
-  @Deprecated("Use abortOn", ReplaceWith("abortOn<E> { predicate(it) }"))
-  inline fun <reified E : Throwable> failWhen(
-    noinline predicate: suspend (ExecutionAttempt<E>) -> Boolean,
-  ): TaskRunner<T> = addLegacyFailCondition(LegacyFailCondition(E::class, predicate))
-
-  @Deprecated("Unmatched failures retry by default; use abortOn for terminal failures")
-  fun failWhenFallback(
-    block: suspend (ExecutionAttempt<Throwable>) -> Boolean,
-  ): TaskRunner<T> = configure {
-    check(!usesAbortApi) { "Cannot mix abortOn with deprecated failure APIs" }
-    usesLegacyFailureApi = true
-    legacyFailFallback = block
-  }
-
-  @Deprecated("Use poll and stopWhen")
-  inline fun <reified E : Any> retryWhen(
-    noinline predicate: suspend (ExecutionAttempt<E>) -> Boolean,
-  ): TaskRunner<T> = stopWhen<E> { predicate(it).not() }
-
-  @Deprecated("Use onAttemptSuccess")
-  fun result(block: suspend (ExecutionAttempt<T>) -> Unit): TaskRunner<T> = configure {
-    check(onAttemptSuccess == null) { "Cannot mix deprecated result with onAttemptSuccess" }
-    legacyAttemptSuccess = block
-  }
-
-  @Deprecated("Use onAttemptFailure")
-  fun throwable(block: suspend (ExecutionAttempt<Throwable>) -> Unit): TaskRunner<T> = configure {
-    check(onAttemptFailure == null) { "Cannot mix deprecated throwable with onAttemptFailure" }
-    legacyAttemptFailure = block
-  }
-
-  @Deprecated("Use onExhausted")
-  fun exhausted(block: suspend (ExecutionAttempt<Unit>) -> Unit): TaskRunner<T> = configure {
-    check(onExhausted == null) { "Cannot mix deprecated exhausted with onExhausted" }
-    legacyExhausted = block
-  }
-
-  @Deprecated("Use onTimeout")
-  fun timeout(block: suspend (ExecutionAttempt<Unit>) -> Unit): TaskRunner<T> = configure {
-    check(onTimeout == null) { "Cannot mix deprecated timeout with onTimeout" }
-    legacyTimeout = block
-  }
-
-  @Deprecated("Use onCancel")
-  fun cancel(block: suspend (ExecutionAttempt<Unit>) -> Unit): TaskRunner<T> = configure {
-    check(onCancel == null) { "Cannot mix deprecated cancel with onCancel" }
-    legacyCancel = block
-  }
-
-  @Deprecated("Use onFinished")
-  fun finally(block: suspend (ExecutionAttempt<Unit>) -> Unit): TaskRunner<T> = configure {
-    check(onFinished == null) { "Cannot mix deprecated finally with onFinished" }
-    legacyFinished = block
-  }
-
   @PublishedApi
   internal fun <E : Any> addStopCondition(condition: StopWhenCondition<E>): TaskRunner<T> = configure {
-    check(requestedMode != ExecutionMode.RETRY) { "stopWhen is only supported by TaskRunner.poll" }
+    check(mode != ExecutionMode.RETRY) { "stopWhen is only supported by TaskRunner.poll" }
     stopConditions.add(condition)
   }
 
   @PublishedApi
   internal fun <E : Throwable> addAbortCondition(condition: AbortCondition<E>): TaskRunner<T> = configure {
-    check(!usesLegacyFailureApi) { "Cannot mix abortOn with deprecated failure APIs" }
-    usesAbortApi = true
     abortConditions.add(condition)
-  }
-
-  @PublishedApi
-  internal fun <E : Throwable> addLegacyFailCondition(
-    condition: LegacyFailCondition<E>,
-  ): TaskRunner<T> = configure {
-    check(!usesAbortApi) { "Cannot mix deprecated failure APIs with abortOn" }
-    usesLegacyFailureApi = true
-    legacyFailConditions.add(condition)
   }
 
   /**
@@ -246,7 +150,6 @@ class TaskRunner<T> private constructor(
   }
 
   private fun buildSpec(): TaskExecutionSpec<T> {
-    val mode = requestedMode ?: if (stopConditions.isEmpty()) ExecutionMode.RETRY else ExecutionMode.POLL
     check(mode != ExecutionMode.POLL || stopConditions.isNotEmpty()) {
       "TaskRunner.poll requires at least one stopWhen condition"
     }
@@ -257,8 +160,6 @@ class TaskRunner<T> private constructor(
       supplier = supplier ?: error("TaskRunner must have supplier"),
       stopConditions = stopConditions.toList(),
       abortConditions = abortConditions.toList(),
-      legacyFailConditions = legacyFailConditions.toList(),
-      legacyFailFallback = legacyFailFallback,
       beforeRetry = beforeRetry,
       onAttemptSuccess = onAttemptSuccess,
       onAttemptFailure = onAttemptFailure,
@@ -269,12 +170,6 @@ class TaskRunner<T> private constructor(
       onCancel = onCancel,
       onFinished = onFinished,
       onObserverError = onObserverError,
-      legacyAttemptSuccess = legacyAttemptSuccess,
-      legacyAttemptFailure = legacyAttemptFailure,
-      legacyExhausted = legacyExhausted,
-      legacyTimeout = legacyTimeout,
-      legacyCancel = legacyCancel,
-      legacyFinished = legacyFinished,
     )
   }
 
@@ -282,8 +177,6 @@ class TaskRunner<T> private constructor(
     supplier = null
     stopConditions.clear()
     abortConditions.clear()
-    legacyFailConditions.clear()
-    legacyFailFallback = null
     beforeRetry = null
     onAttemptSuccess = null
     onAttemptFailure = null
@@ -294,11 +187,5 @@ class TaskRunner<T> private constructor(
     onCancel = null
     onFinished = null
     onObserverError = null
-    legacyAttemptSuccess = null
-    legacyAttemptFailure = null
-    legacyExhausted = null
-    legacyTimeout = null
-    legacyCancel = null
-    legacyFinished = null
   }
 }

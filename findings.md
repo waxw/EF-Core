@@ -6,7 +6,7 @@
 - 外部 CancellationException 原样上抛；supplier 自有 withTimeout 作为 attempt failure。
 - 新控制规则为同步 `abortOn`；未命中异常默认重试；stopWhen/beforeRetry 异常立即 Failure。
 - 同步 onXxx 观察回调不影响控制流，错误交给 onObserverError，且不递归。
-- 保留并废弃标注 0.0.5 构造器与 DSL；旧构造器有 stopWhen 时保持 poll 语义。
+- 不保留 0.0.5 构造器、DSL、回调和字段别名；调用方统一迁移到新 API。
 - 扩展 metrics，标识 INITIAL_DELAY/ATTEMPT/RETRY_DELAY/BEFORE_RETRY/STOP_CONDITION。
 
 ## Research Findings
@@ -23,7 +23,7 @@
 | `abortOn<E>` 接收同步 `(E) -> Boolean`，默认 predicate 为 true | 同时覆盖按类型终止与 4xx 子集分类 |
 | `RetryContext.previousFailure` 可空 | poll 的上一次成功但未完成也会进入 beforeRetry |
 | 非 attempt 阶段的 attemptStartTime/attemptDuration 为空 | 使 metrics 不伪造当前阶段不存在的 attempt 时间 |
-| 新观察器异常（含 CancellationException）一律隔离；旧 suspend 回调仅 CancellationException 继续传播 | 同时满足新旁路契约与 0.0.5 特殊兼容规则 |
+| 新观察器异常（含 CancellationException）一律隔离 | 观察器不改变 TaskRunner 控制流 |
 | 外部/总超时取消通过当前 coroutine context active 状态区分 supplier 自有 withTimeout | 避免继续依赖反射读取协程内部字段 |
 | 公共模型按职责拆分文件 | 符合 code-styles.md 一个主要对外声明的默认规则 |
 | 不为 observer 字段增加聚合配置对象 | 属判断性 smell，现有显式 Builder→Spec 映射更便于核对且没有实际遗漏证据 |
@@ -35,7 +35,7 @@
 | 历史对话记录较长且分页 | 只读取足以确认 Builder/Spec/Execution、retry/poll 与兼容方向的相关摘要，最终语义以 Issue #36 为准 |
 | standards review 指出一个硬风格问题和无用参数 | 已分别拆分公开模型文件、删除 LegacyFailCondition.matches 的无用 throwable 参数 |
 | spec review 指出冻结竞态与控制步骤 timeout 分类问题 | 用 configurationLock 原子冻结/快照；beforeRetry/stopWhen 自有 withTimeout 产出 Failure |
-| 旧 attempt ExecutionResult 显式类型与新 sealed ExecutionResult 同包同名冲突 | 保留旧 DSL 方法及 data/executionMetrics 常用调用形式；无法兼容显式旧类型注解，记录为规格内部矛盾 |
+| 旧 attempt ExecutionResult 与新 sealed ExecutionResult 同包同名冲突 | 用户决定不做旧 API 兼容，删除全部 deprecated 兼容入口和字段 |
 
 ## Resources
 - https://github.com/waxw/EF-Core/issues/36

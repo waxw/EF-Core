@@ -1,7 +1,7 @@
 # Task Plan: TaskRunner Issue #36
 
 ## Goal
-在 EF-Core `core` 模块实现 Issue #36 已确认的 TaskRunner retry/poll、终态结果、异常映射、观察回调与 0.0.5 兼容契约，并通过公开 API 单元测试验证。
+在 EF-Core `core` 模块实现 Issue #36 已确认的 TaskRunner retry/poll、终态结果、异常映射与观察回调，并通过公开 API 单元测试验证。
 
 ## Current Phase
 Complete
@@ -16,19 +16,19 @@ Complete
 
 ### Phase 2: API 与状态机映射
 - [x] 从既有设计记录确认公开签名方向
-- [x] 映射新 API、兼容 API、运行阶段与回调顺序
+- [x] 映射公开 API、运行阶段与回调顺序
 - [x] 确认配置冲突的校验时机
 - **Status:** complete
 
 ### Phase 3: 实现
 - [x] 实现公开模型、构建入口和异常
-- [x] 实现共享运行状态机与兼容行为
+- [x] 实现共享运行状态机
 - [x] 实现观察错误隔离和回调顺序
 - **Status:** complete
 
 ### Phase 4: 公开行为测试
 - [x] 重写/扩充 TaskRunnerUnitTest
-- [x] 覆盖 Issue #36 指定的结果、取消、阶段、顺序与兼容行为
+- [x] 覆盖 Issue #36 指定的结果、取消、阶段与顺序
 - **Status:** complete
 
 ### Phase 5: 验证与审查
@@ -44,8 +44,8 @@ Complete
 | 保留 Builder/Spec/Execution 分层 | Issue #36 明确要求，新旧入口共用一个 runtime |
 | 所有行为测试只走 TaskRunnerUnitTest | 避免测试耦合内部执行类 |
 | 不修改 EF-Chat，不提交 | 交接明确限定 |
-| `ExecutionAttempt`/终态对象统一使用 `metrics`，并保留 `executionMetrics` 兼容别名 | 新契约清晰，同时降低旧调用迁移成本 |
-| callback 对应关系为 result/attemptSuccess、throwable/attemptFailure、exhausted/onExhausted、timeout/onTimeout、cancel/onCancel、finally/onFinished | 用于立即拒绝同一通知的新旧 API 混用 |
+| `ExecutionAttempt`/终态对象统一使用 `metrics` | 不保留旧字段别名，调用方直接迁移到新契约 |
+| 删除 0.0.5 构造器、旧 DSL、旧回调和兼容执行分支 | 用户决定不做旧 API 兼容，避免维护双套语义 |
 
 ## Errors Encountered
 
@@ -60,4 +60,4 @@ Complete
 ## Notes
 - 保留 `core/build.gradle.kts`、`ksp/build.gradle.kts` 的用户版本改动。
 - 构建前必须向用户说明影响并获得确认。
-- 规格同时要求新 sealed `ExecutionResult` 取代旧 attempt `ExecutionResult`，又要求旧显式类型调用完全源码兼容；同包同名无法兼得。本实现保留旧方法和常用属性访问，不保留显式旧类型注解兼容。
+- 当前 TaskRunner 只提供 `retry`/`poll` 构建入口及新观察 API，不承诺 0.0.5 源码兼容。

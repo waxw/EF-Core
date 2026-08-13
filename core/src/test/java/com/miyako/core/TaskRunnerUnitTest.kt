@@ -17,7 +17,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.coroutines.cancellation.CancellationException
 
-@Suppress("DEPRECATION")
 class TaskRunnerUnitTest {
 
   @Test
@@ -371,25 +370,6 @@ class TaskRunnerUnitTest {
   }
 
   @Test
-  fun deprecated_cancel_cancellation_is_suppressed_on_original_cancellation() = runTest {
-    val externalCancellation = CancellationException("external")
-    val callbackCancellation = CancellationException("callback")
-
-    val thrown = runCatching {
-      TaskRunner {
-        throw externalCancellation
-      }.cancel {
-        throw callbackCancellation
-      }.executeResult()
-    }.exceptionOrNull()
-
-    assertSame(externalCancellation, thrown)
-    val suppressed = thrown?.suppressed?.single()
-    assertTrue(suppressed is CancellationException)
-    assertEquals(callbackCancellation.message, suppressed?.message)
-  }
-
-  @Test
   fun success_notifications_follow_contract_order() = runTest {
     val events = mutableListOf<String>()
 
@@ -482,86 +462,6 @@ class TaskRunnerUnitTest {
       ),
       sources,
     )
-  }
-
-  @Test
-  fun configuration_rejects_mixed_new_and_legacy_apis_immediately() {
-    val failureRuleError = runCatching {
-      TaskRunner.retry { 1 }
-        .abortOn<IllegalStateException>()
-        .failWhen<IllegalStateException> { true }
-    }.exceptionOrNull()
-    val observerError = runCatching {
-      TaskRunner.retry { 1 }
-        .result {}
-        .onAttemptSuccess {}
-    }.exceptionOrNull()
-
-    assertTrue(failureRuleError is IllegalStateException)
-    assertTrue(observerError is IllegalStateException)
-  }
-
-  @Test
-  fun deprecated_constructor_preserves_poll_behavior() = runTest {
-    var attempts = 0
-
-    val result = TaskRunner(maxAttempts = 3) {
-      ++attempts
-    }.stopWhen<Int> {
-      it.data == 2
-    }.executeResult()
-
-    assertTrue(result is ExecutionResult.Success)
-    result as ExecutionResult.Success
-    assertEquals(2, result.data)
-    assertEquals(2, attempts)
-  }
-
-  @Test
-  fun deprecated_observer_failure_is_isolated_but_cancellation_propagates() = runTest {
-    val sources = mutableListOf<ObserverSource>()
-    val successful = TaskRunner {
-      1
-    }.result {
-      throw IllegalStateException("legacy observer")
-    }.onObserverError {
-      sources += it.source
-    }.executeResult()
-
-    assertTrue(successful is ExecutionResult.Success)
-    assertEquals(listOf(ObserverSource.ON_ATTEMPT_SUCCESS), sources)
-
-    val cancellation = CancellationException("legacy cancellation")
-    val thrown = runCatching {
-      TaskRunner {
-        1
-      }.result {
-        throw cancellation
-      }.executeResult()
-    }.exceptionOrNull()
-    assertSame(cancellation, thrown)
-  }
-
-  @Test
-  fun deprecated_beforeRetry_failure_notifies_throwable_and_terminates() = runTest {
-    val preparationFailure = IllegalStateException("prepare")
-    val events = mutableListOf<String>()
-
-    val result = TaskRunner(maxAttempts = 2) {
-      events += "supplier"
-      throw IllegalArgumentException("attempt")
-    }.throwable {
-      events += "throwable:${it.data.message}"
-    }.failWhen<IllegalArgumentException> {
-      false
-    }.beforeRetry {
-      throw preparationFailure
-    }.executeResult()
-
-    assertTrue(result is ExecutionResult.Failure)
-    result as ExecutionResult.Failure
-    assertSame(preparationFailure, result.throwable)
-    assertEquals(listOf("supplier", "throwable:attempt", "throwable:prepare"), events)
   }
 
   @Test

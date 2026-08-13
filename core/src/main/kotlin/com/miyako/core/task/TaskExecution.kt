@@ -107,10 +107,6 @@ internal class TaskExecution<T>(
       if (!canHandleAsStepFailure(throwable)) throw throwable
       ExecutionResult.Failure(throwable, state.metrics())
     } catch (throwable: Throwable) {
-      val attempt = ExecutionAttempt(state.metrics(), throwable)
-      observeLegacy(ObserverSource.ON_ATTEMPT_FAILURE, attempt.metrics) {
-        spec.legacyAttemptFailure?.invoke(attempt)
-      }
       ExecutionResult.Failure(throwable, state.metrics())
     }
   }
@@ -166,16 +162,7 @@ internal class TaskExecution<T>(
     notifyAttemptFailure(attempt)
 
     val abortFailure = evaluateAbortConditions(throwable)
-    return when {
-      abortFailure != null -> ExecutionResult.Failure(abortFailure, state.metrics())
-      usesLegacyFailureRules() -> {
-        evaluateLegacyFailureRules(throwable, attempt)?.let { legacyFailure ->
-          ExecutionResult.Failure(legacyFailure, state.metrics())
-        }
-      }
-
-      else -> null
-    }
+    return abortFailure?.let { ExecutionResult.Failure(it, state.metrics()) }
   }
 
   private fun evaluateAbortConditions(
@@ -193,49 +180,19 @@ internal class TaskExecution<T>(
     return null
   }
 
-  private fun usesLegacyFailureRules(): Boolean {
-    return spec.legacyFailConditions.isNotEmpty() || spec.legacyFailFallback != null
-  }
-
   private suspend fun canHandleAsStepFailure(throwable: CancellationException): Boolean {
     return throwable is TimeoutCancellationException && currentCoroutineContext().isActive
-  }
-
-  private suspend fun evaluateLegacyFailureRules(
-    throwable: Throwable,
-    attempt: ExecutionAttempt<Throwable>,
-  ): Throwable? {
-    val matchingConditions = spec.legacyFailConditions.filter { it.accepts(throwable) }
-    return try {
-      val shouldAbort = if (matchingConditions.isNotEmpty()) {
-        matchingConditions.any { it.matches(attempt) }
-      } else {
-        spec.legacyFailFallback?.invoke(attempt) ?: false
-      }
-      throwable.takeIf { shouldAbort }
-    } catch (cancellation: CancellationException) {
-      throw cancellation
-    } catch (ruleError: Throwable) {
-      ruleError.addSuppressed(throwable)
-      ruleError
-    }
   }
 
   private suspend fun notifyAttemptSuccess(attempt: ExecutionAttempt<T>) {
     observe(ObserverSource.ON_ATTEMPT_SUCCESS, attempt.metrics) {
       spec.onAttemptSuccess?.invoke(attempt)
     }
-    observeLegacy(ObserverSource.ON_ATTEMPT_SUCCESS, attempt.metrics) {
-      spec.legacyAttemptSuccess?.invoke(attempt)
-    }
   }
 
   private suspend fun notifyAttemptFailure(attempt: ExecutionAttempt<Throwable>) {
     observe(ObserverSource.ON_ATTEMPT_FAILURE, attempt.metrics) {
       spec.onAttemptFailure?.invoke(attempt)
-    }
-    observeLegacy(ObserverSource.ON_ATTEMPT_FAILURE, attempt.metrics) {
-      spec.legacyAttemptFailure?.invoke(attempt)
     }
   }
 
@@ -251,16 +208,10 @@ internal class TaskExecution<T>(
 
       is ExecutionResult.Exhausted -> {
         observe(ObserverSource.ON_EXHAUSTED, result.metrics) { spec.onExhausted?.invoke(result) }
-        observeLegacy(ObserverSource.ON_EXHAUSTED, result.metrics) {
-          spec.legacyExhausted?.invoke(ExecutionAttempt(result.metrics, Unit))
-        }
       }
 
       is ExecutionResult.Timeout -> {
         observe(ObserverSource.ON_TIMEOUT, result.metrics) { spec.onTimeout?.invoke(result) }
-        observeLegacy(ObserverSource.ON_TIMEOUT, result.metrics) {
-          spec.legacyTimeout?.invoke(ExecutionAttempt(result.metrics, Unit))
-        }
       }
     }
   }
@@ -269,9 +220,6 @@ internal class TaskExecution<T>(
     val metrics = state.metrics()
     withContext(NonCancellable) {
       observe(ObserverSource.ON_CANCEL, metrics) { spec.onCancel?.invoke(metrics) }
-      observeLegacy(ObserverSource.ON_CANCEL, metrics) {
-        spec.legacyCancel?.invoke(ExecutionAttempt(metrics, Unit))
-      }
     }
   }
 
@@ -279,9 +227,6 @@ internal class TaskExecution<T>(
     val metrics = state.metrics()
     withContext(NonCancellable) {
       observe(ObserverSource.ON_FINISHED, metrics) { spec.onFinished?.invoke(metrics) }
-      observeLegacy(ObserverSource.ON_FINISHED, metrics) {
-        spec.legacyFinished?.invoke(ExecutionAttempt(metrics, Unit))
-      }
     }
   }
 
@@ -292,20 +237,6 @@ internal class TaskExecution<T>(
   ) {
     try {
       block()
-    } catch (throwable: Throwable) {
-      reportObserverError(ObserverFailure(source, throwable, metrics))
-    }
-  }
-
-  private suspend fun observeLegacy(
-    source: ObserverSource,
-    metrics: ExecutionMetrics,
-    block: suspend () -> Unit,
-  ) {
-    try {
-      block()
-    } catch (cancellation: CancellationException) {
-      throw cancellation
     } catch (throwable: Throwable) {
       reportObserverError(ObserverFailure(source, throwable, metrics))
     }
