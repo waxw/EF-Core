@@ -3,7 +3,7 @@ package com.miyako.core.task
 import kotlin.reflect.KClass
 
 @PublishedApi
-internal class StopWhenCondition<T : Any>(
+internal class CompletionCondition<T : Any>(
   private val type: KClass<T>,
   private val predicate: suspend (ExecutionAttempt<T>) -> Boolean,
 ) {

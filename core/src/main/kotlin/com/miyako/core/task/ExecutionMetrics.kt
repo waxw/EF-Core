@@ -5,7 +5,7 @@ enum class ExecutionPhase {
   ATTEMPT,
   RETRY_DELAY,
   BEFORE_RETRY,
-  STOP_CONDITION,
+  COMPLETION_CONDITION,
 }
 
 data class ExecutionMetrics(

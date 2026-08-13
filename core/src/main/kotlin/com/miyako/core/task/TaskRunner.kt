@@ -6,7 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * One-shot structured-concurrency task runner.
  *
  * Use [retry] for tasks where the first successful supplier result is terminal, or [poll] for
- * tasks that require an explicit [stopWhen] completion condition. The runner inherits the caller's
+ * tasks that require an explicit [completeWhen] condition. The runner inherits the caller's
  * coroutine context and never creates or owns a scope, job, or dispatcher.
  */
 class TaskRunner<T> private constructor(
@@ -29,7 +29,7 @@ class TaskRunner<T> private constructor(
       return TaskRunner(ExecutionMode.RETRY, initialDelayMs, intervalMs, maxAttempts, timeoutMs, supplier)
     }
 
-    /** Builds a polling task that repeats until a [stopWhen] condition succeeds. */
+    /** Builds a polling task that repeats until a [completeWhen] condition succeeds. */
     fun <T> poll(
       maxAttempts: Int,
       initialDelayMs: Long = 0,
@@ -44,7 +44,7 @@ class TaskRunner<T> private constructor(
   private val config = ExecutionConfig(initialDelayMs, intervalMs, maxAttempts, timeoutMs)
   private val executed = AtomicBoolean(false)
   private val configurationLock = Any()
-  private val stopConditions = mutableListOf<StopWhenCondition<*>>()
+  private val completionConditions = mutableListOf<CompletionCondition<*>>()
   private val abortConditions = mutableListOf<AbortCondition<out Throwable>>()
   private val retryConditions = mutableListOf<RetryCondition<out Throwable>>()
 
@@ -66,9 +66,9 @@ class TaskRunner<T> private constructor(
     }
   }
 
-  inline fun <reified E : Any> stopWhen(
+  inline fun <reified E : Any> completeWhen(
     noinline predicate: suspend (ExecutionAttempt<E>) -> Boolean,
-  ): TaskRunner<T> = addStopCondition(StopWhenCondition(E::class, predicate))
+  ): TaskRunner<T> = addCompletionCondition(CompletionCondition(E::class, predicate))
 
   inline fun <reified E : Throwable> abortOn(
     noinline predicate: (E) -> Boolean = { true },
@@ -120,9 +120,9 @@ class TaskRunner<T> private constructor(
   }
 
   @PublishedApi
-  internal fun <E : Any> addStopCondition(condition: StopWhenCondition<E>): TaskRunner<T> = configure {
-    check(mode != ExecutionMode.RETRY) { "stopWhen is only supported by TaskRunner.poll" }
-    stopConditions.add(condition)
+  internal fun <E : Any> addCompletionCondition(condition: CompletionCondition<E>): TaskRunner<T> = configure {
+    check(mode != ExecutionMode.RETRY) { "completeWhen is only supported by TaskRunner.poll" }
+    completionConditions.add(condition)
   }
 
   @PublishedApi
@@ -161,15 +161,15 @@ class TaskRunner<T> private constructor(
   }
 
   private fun buildSpec(): TaskExecutionSpec<T> {
-    check(mode != ExecutionMode.POLL || stopConditions.isNotEmpty()) {
-      "TaskRunner.poll requires at least one stopWhen condition"
+    check(mode != ExecutionMode.POLL || completionConditions.isNotEmpty()) {
+      "TaskRunner.poll requires at least one completeWhen condition"
     }
 
     return TaskExecutionSpec(
       mode = mode,
       config = config,
       supplier = supplier ?: error("TaskRunner must have supplier"),
-      stopConditions = stopConditions.toList(),
+      completionConditions = completionConditions.toList(),
       abortConditions = abortConditions.toList(),
       retryConditions = retryConditions.toList(),
       beforeRetry = beforeRetry,
@@ -187,7 +187,7 @@ class TaskRunner<T> private constructor(
 
   private fun cleanUp() {
     supplier = null
-    stopConditions.clear()
+    completionConditions.clear()
     abortConditions.clear()
     retryConditions.clear()
     beforeRetry = null

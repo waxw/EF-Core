@@ -204,19 +204,19 @@ class TaskRunnerUnitTest {
   }
 
   @Test
-  fun poll_uses_ordered_or_short_circuit_stop_conditions() = runTest {
+  fun poll_uses_ordered_or_short_circuit_completion_conditions() = runTest {
     val conditions = mutableListOf<String>()
 
     val result = TaskRunner.poll(maxAttempts = 3) {
       42
-    }.stopWhen<Int> {
+    }.completeWhen<Int> {
       conditions += "first"
       false
-    }.stopWhen<Int> {
+    }.completeWhen<Int> {
       conditions += "second"
-      assertEquals(ExecutionPhase.STOP_CONDITION, it.metrics.phase)
+      assertEquals(ExecutionPhase.COMPLETION_CONDITION, it.metrics.phase)
       true
-    }.stopWhen<Int> {
+    }.completeWhen<Int> {
       conditions += "third"
       true
     }.executeResult()
@@ -226,7 +226,7 @@ class TaskRunnerUnitTest {
   }
 
   @Test
-  fun poll_without_stopWhen_fails_before_supplier_starts() = runTest {
+  fun poll_without_completeWhen_fails_before_supplier_starts() = runTest {
     var supplierCalled = false
     val runner = TaskRunner.poll(maxAttempts = 2) {
       supplierCalled = true
@@ -240,16 +240,16 @@ class TaskRunnerUnitTest {
   }
 
   @Test
-  fun retry_rejects_stopWhen_immediately() {
+  fun retry_rejects_completeWhen_immediately() {
     val error = runCatching {
-      TaskRunner.retry { 1 }.stopWhen<Int> { true }
+      TaskRunner.retry { 1 }.completeWhen<Int> { true }
     }.exceptionOrNull()
 
     assertTrue(error is IllegalStateException)
   }
 
   @Test
-  fun stopWhen_failure_terminates_without_abortOn_or_retry() = runTest {
+  fun completeWhen_failure_terminates_without_abortOn_or_retry() = runTest {
     val conditionFailure = IllegalStateException("condition")
     var attempts = 0
     var abortCalled = false
@@ -257,7 +257,7 @@ class TaskRunnerUnitTest {
     val result = TaskRunner.poll(maxAttempts = 3) {
       attempts++
       1
-    }.stopWhen<Int> {
+    }.completeWhen<Int> {
       throw conditionFailure
     }.abortOn<IllegalStateException> {
       abortCalled = true
@@ -275,7 +275,7 @@ class TaskRunnerUnitTest {
   fun poll_exhaustion_after_successful_incomplete_attempt_has_no_failure() = runTest {
     val result = TaskRunner.poll(maxAttempts = 2) {
       "pending"
-    }.stopWhen<String> {
+    }.completeWhen<String> {
       false
     }.executeResult()
 
@@ -324,10 +324,10 @@ class TaskRunnerUnitTest {
   }
 
   @Test
-  fun stopWhen_owned_timeout_is_failure() = runTest {
+  fun completeWhen_owned_timeout_is_failure() = runTest {
     val result = TaskRunner.poll(maxAttempts = 2) {
       1
-    }.stopWhen<Int> {
+    }.completeWhen<Int> {
       withTimeout(1_000) {
         delay(2_000)
       }
@@ -337,7 +337,7 @@ class TaskRunnerUnitTest {
     assertTrue(result is ExecutionResult.Failure)
     result as ExecutionResult.Failure
     assertTrue(result.throwable is kotlinx.coroutines.TimeoutCancellationException)
-    assertEquals(ExecutionPhase.STOP_CONDITION, result.metrics.phase)
+    assertEquals(ExecutionPhase.COMPLETION_CONDITION, result.metrics.phase)
   }
 
   @Test
@@ -417,17 +417,17 @@ class TaskRunnerUnitTest {
   }
 
   @Test
-  fun timeout_metrics_identify_stop_condition() = runTest {
+  fun timeout_metrics_identify_completion_condition() = runTest {
     val result = TaskRunner.poll(maxAttempts = 2, timeoutMs = 1_000) {
       1
-    }.stopWhen<Int> {
+    }.completeWhen<Int> {
       delay(2_000)
       true
     }.executeResult()
 
     assertTrue(result is ExecutionResult.Timeout)
     result as ExecutionResult.Timeout
-    assertEquals(ExecutionPhase.STOP_CONDITION, result.metrics.phase)
+    assertEquals(ExecutionPhase.COMPLETION_CONDITION, result.metrics.phase)
     assertEquals(1, result.metrics.executionCount)
   }
 
@@ -459,8 +459,8 @@ class TaskRunnerUnitTest {
       1
     }.onAttemptSuccess {
       events += "attemptSuccess"
-    }.stopWhen<Int> {
-      events += "stopWhen"
+    }.completeWhen<Int> {
+      events += "completeWhen"
       true
     }.onSuccess {
       events += "success"
@@ -469,7 +469,7 @@ class TaskRunnerUnitTest {
     }.executeResult()
 
     assertTrue(result is ExecutionResult.Success)
-    assertEquals(listOf("supplier", "attemptSuccess", "stopWhen", "success", "finished"), events)
+    assertEquals(listOf("supplier", "attemptSuccess", "completeWhen", "success", "finished"), events)
   }
 
   @Test

@@ -135,11 +135,11 @@ internal class TaskExecution<T>(
       return ExecutionResult.Success(data, attempt.metrics)
     }
 
-    state.phase = ExecutionPhase.STOP_CONDITION
-    val stopAttempt = ExecutionAttempt(state.metrics(), data)
+    state.phase = ExecutionPhase.COMPLETION_CONDITION
+    val completionAttempt = ExecutionAttempt(state.metrics(), data)
     return try {
-      val shouldStop = spec.stopConditions.any { condition -> condition.matches(data, stopAttempt) }
-      if (shouldStop) {
+      val isComplete = spec.completionConditions.any { condition -> condition.matches(data, completionAttempt) }
+      if (isComplete) {
         ExecutionResult.Success(data, state.metrics())
       } else {
         null

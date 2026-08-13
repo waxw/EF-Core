@@ -9,7 +9,7 @@ internal data class TaskExecutionSpec<T>(
   val mode: ExecutionMode,
   val config: ExecutionConfig,
   val supplier: suspend () -> T,
-  val stopConditions: List<StopWhenCondition<*>>,
+  val completionConditions: List<CompletionCondition<*>>,
   val abortConditions: List<AbortCondition<out Throwable>>,
   val retryConditions: List<RetryCondition<out Throwable>>,
   val beforeRetry: (suspend (RetryContext) -> Unit)?,
