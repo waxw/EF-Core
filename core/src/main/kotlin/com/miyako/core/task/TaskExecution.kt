@@ -176,7 +176,7 @@ internal class TaskExecution<T>(
       try {
         if (condition.matches(throwable)) return throwable
       } catch (ruleError: Throwable) {
-        ruleError.addSuppressed(throwable)
+        if (ruleError !== throwable) ruleError.addSuppressed(throwable)
         return ruleError
       }
     }
@@ -193,7 +193,7 @@ internal class TaskExecution<T>(
       try {
         if (condition.matches(throwable)) return null
       } catch (ruleError: Throwable) {
-        ruleError.addSuppressed(throwable)
+        if (ruleError !== throwable) ruleError.addSuppressed(throwable)
         return ruleError
       }
     }

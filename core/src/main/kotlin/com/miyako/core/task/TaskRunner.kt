@@ -155,7 +155,11 @@ class TaskRunner<T> private constructor(
   suspend fun executeResult(): ExecutionResult<T> {
     val spec = synchronized(configurationLock) {
       check(executed.compareAndSet(false, true)) { "TaskRunner can only be executed once" }
-      buildSpec().also { cleanUp() }
+      try {
+        buildSpec()
+      } finally {
+        cleanUp()
+      }
     }
     return TaskExecution(spec).execute()
   }

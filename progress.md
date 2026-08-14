@@ -85,3 +85,23 @@
 - `git diff --check` 已通过。
 - 已扫描 `core`、`app`、`ksp`，当前代码与测试无 `delayMs`、`stopWhen`、`STOP_CONDITION` 残留。
 - 尚未重新运行 `./gradlew :core:testDebugUnitTest`；2026-08-12 的 41/41 结果仅作为变更前基线。
+
+## Session: 2026-08-14
+
+### Phase 7: 健壮性修复与最终收口
+- **Status:** complete
+- Planned actions:
+  - 修复规格构建失败后的引用清理。
+  - 修复策略 predicate 重抛原异常时的 self-suppression。
+  - 补充多 `retryOn` OR/短路契约测试。
+  - 运行 TaskRunnerUnitTest 并更新最终状态。
+- Completed implementation:
+  - `executeResult()` 通过 `try/finally` 保证 `buildSpec()` 失败后仍执行 `cleanUp()`。
+  - `abortOn`/`retryOn` 仅在规则异常与 attempt 异常不是同一对象时添加 suppressed。
+  - TaskRunnerUnitTest 从 32 个增加到 35 个。
+- Verification:
+  - 运行 `./gradlew :core:testDebugUnitTest --tests com.miyako.core.TaskRunnerUnitTest`。
+  - `BUILD SUCCESSFUL in 16s`；35 tests，0 skipped，0 failures，0 errors。
+  - `git diff --check` 通过。
+- Error log:
+  - Phase 7 状态补丁首次混用了两个文档的上下文，未产生文件修改；读取局部内容后使用分文件补丁修正。

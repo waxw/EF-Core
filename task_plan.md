@@ -4,7 +4,7 @@
 在 EF-Core `core` 模块实现 Issue #36 已确认的 TaskRunner retry/poll、终态结果、异常映射与观察回调，并通过公开 API 单元测试验证。
 
 ## Current Phase
-Phase 6: verification pending
+Complete
 
 ## Phases
 
@@ -43,8 +43,16 @@ Phase 6: verification pending
 - [x] 将 `stopWhen` 及相关内部模型统一改为 `completeWhen`
 - [x] 将 `ExecutionPhase.STOP_CONDITION` 改为 `COMPLETION_CONDITION`
 - [x] 补充 `retryOn` 匹配、未匹配、predicate、优先级和规则异常测试
-- [ ] 经用户确认后重新运行 `./gradlew :core:testDebugUnitTest`
-- **Status:** implementation complete; verification pending
+- [x] 经用户确认后运行 `./gradlew :core:testDebugUnitTest --tests com.miyako.core.TaskRunnerUnitTest`
+- **Status:** complete
+
+### Phase 7: 健壮性修复与最终收口
+- [x] 保证 buildSpec 失败时仍清理一次性 runner 引用
+- [x] 防止 abortOn/retryOn predicate 重抛原异常时发生 self-suppression
+- [x] 补充 self-suppression 与多 retryOn OR/短路测试
+- [x] 运行 TaskRunnerUnitTest 并记录最新结果
+- [x] 更新规格与进度文档
+- **Status:** complete
 
 ## Decisions Made
 
@@ -69,9 +77,10 @@ Phase 6: verification pending
 | standards review 发现公共模型集中在 Execution.kt、旧条件有无用参数 | 1 | 公共模型按职责拆文件并删除无用参数 |
 | spec review 发现配置冻结竞态、legacy beforeRetry 通知缺失、控制步骤自有 timeout 误分类 | 1 | 原子冻结快照、补 legacy 通知，并将步骤自有 TimeoutCancellationException 映射 Failure |
 | 新增 cancel suppressed 测试误用对象身份断言 | 1 | 保留外部取消对象 identity 断言；suppressed 改断言类型与消息，因为 withContext 可复制取消异常 |
+| Phase 7 状态补丁混用了 task_plan/progress 上下文 | 1 | 读取两个局部段落后改用分文件精确补丁 |
 
 ## Notes
 - 实施期间保留了 `core/build.gradle.kts`、`ksp/build.gradle.kts` 当时已有的用户版本改动。
 - 构建前必须向用户说明影响并获得确认。
 - 当前 TaskRunner 只提供 `retry`/`poll` 构建入口及新观察 API，不承诺 0.0.5 源码兼容。
-- 2026-08-13 的 Phase 6 改动已通过 `git diff --check` 和 `core`/`app`/`ksp` 旧名称扫描，尚未重新运行 Gradle 测试。
+- 2026-08-14 运行 TaskRunnerUnitTest 35/35 通过，无 failure/error/skipped；本轮未运行 core 其他单元测试。

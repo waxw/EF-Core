@@ -94,6 +94,22 @@ class TaskRunnerUnitTest {
   }
 
   @Test
+  fun abortOn_predicate_can_rethrow_attempt_failure() = runTest {
+    val attemptFailure = IllegalArgumentException("attempt")
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      throw attemptFailure
+    }.abortOn<IllegalArgumentException> { throwable ->
+      throw throwable
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(attemptFailure, result.throwable)
+    assertTrue(result.throwable.suppressed.isEmpty())
+  }
+
+  @Test
   fun retryOn_retries_only_matching_failures() = runTest {
     var attempts = 0
 
@@ -142,6 +158,31 @@ class TaskRunnerUnitTest {
   }
 
   @Test
+  fun retryOn_uses_ordered_or_short_circuit_conditions() = runTest {
+    val conditions = mutableListOf<String>()
+    var attempts = 0
+
+    val result = TaskRunner.retry(maxAttempts = 2) {
+      attempts++
+      if (attempts == 1) throw IllegalStateException("retry")
+      "done"
+    }.retryOn<IllegalStateException> {
+      conditions += "first"
+      false
+    }.retryOn<RuntimeException> {
+      conditions += "second"
+      true
+    }.retryOn<Throwable> {
+      conditions += "third"
+      true
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Success)
+    assertEquals(listOf("first", "second"), conditions)
+    assertEquals(2, attempts)
+  }
+
+  @Test
   fun abortOn_takes_precedence_over_retryOn() = runTest {
     val failure = IllegalStateException("abort")
     var attempts = 0
@@ -172,6 +213,22 @@ class TaskRunnerUnitTest {
     result as ExecutionResult.Failure
     assertSame(ruleFailure, result.throwable)
     assertSame(attemptFailure, result.throwable.suppressed.single())
+  }
+
+  @Test
+  fun retryOn_predicate_can_rethrow_attempt_failure() = runTest {
+    val attemptFailure = IllegalArgumentException("attempt")
+
+    val result = TaskRunner.retry(maxAttempts = 3) {
+      throw attemptFailure
+    }.retryOn<IllegalArgumentException> { throwable ->
+      throw throwable
+    }.executeResult()
+
+    assertTrue(result is ExecutionResult.Failure)
+    result as ExecutionResult.Failure
+    assertSame(attemptFailure, result.throwable)
+    assertTrue(result.throwable.suppressed.isEmpty())
   }
 
   @Test

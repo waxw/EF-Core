@@ -55,3 +55,9 @@
 ## Verification Status
 - 2026-08-12 基线：`./gradlew :core:testDebugUnitTest` 通过，TaskRunnerUnitTest 32/32，core 41/41。
 - 2026-08-13 更新：`initialDelayMs`、`retryOn`、`completeWhen` 已完成静态检查；Gradle 测试尚未重新运行。
+- 2026-08-14 最终验证：`./gradlew :core:testDebugUnitTest --tests com.miyako.core.TaskRunnerUnitTest` 通过，35/35，无 failure/error/skipped。
+
+## 2026-08-14 Hardening Findings
+- `executeResult()` 使用 `try/finally`，规格构建失败时也会清理已冻结 runner 持有的 supplier、条件和 observer 引用。
+- `abortOn`/`retryOn` predicate 原样重抛 attempt throwable 时不再执行 self-suppression，仍返回包含原异常的结构化 Failure。
+- 多个 `retryOn` 的按顺序 OR 短路语义已有公开行为测试覆盖。
