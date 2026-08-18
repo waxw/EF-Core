@@ -27,6 +27,7 @@ import java.util.Locale
 val gavArtifactIds = mapOf(
   "core" to "core",
   "core-ui" to "core-ui",
+  "core-compose" to "core-compose",
   "core-ksp" to "core-ksp",
 )
 

@@ -23,4 +23,5 @@ rootProject.name = "EF-Core"
 include(":app")
 include(":core")
 include(":core-ui")
+include(":core-compose")
 include(":core-ksp")
