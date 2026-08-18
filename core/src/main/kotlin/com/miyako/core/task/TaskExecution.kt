@@ -10,7 +10,7 @@ import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class TaskExecution<T>(
-  private val spec: TaskExecutionSpec<T>,
+  private val spec: TaskExecutionSpec<T>
 ) {
   private val nanoMillis: Long get() = System.nanoTime() / 1_000_000
 
@@ -21,7 +21,7 @@ internal class TaskExecution<T>(
     var phase: ExecutionPhase = ExecutionPhase.INITIAL_DELAY,
     var attemptStartNano: Long? = null,
     var attemptEndNano: Long? = null,
-    var lastThrowable: Throwable? = null,
+    var lastThrowable: Throwable? = null
   )
 
   suspend fun execute(): ExecutionResult<T> {
@@ -95,11 +95,12 @@ internal class TaskExecution<T>(
     }
 
     state.phase = ExecutionPhase.BEFORE_RETRY
-    val context = RetryContext(
-      nextAttempt = state.executionCount + 1,
-      previousFailure = state.lastThrowable,
-      metrics = state.metrics(),
-    )
+    val context =
+      RetryContext(
+        nextAttempt = state.executionCount + 1,
+        previousFailure = state.lastThrowable,
+        metrics = state.metrics(),
+      )
     return try {
       spec.beforeRetry?.invoke(context)
       null
@@ -116,15 +117,16 @@ internal class TaskExecution<T>(
     state.attemptStartNano = nanoMillis
     state.attemptEndNano = null
 
-    val data = try {
-      spec.supplier()
-    } catch (throwable: CancellationException) {
-      if (!currentCoroutineContext().isActive) throw throwable
-      if (throwable !is TimeoutCancellationException) throw throwable
-      return handleAttemptFailure(state, throwable)
-    } catch (throwable: Throwable) {
-      return handleAttemptFailure(state, throwable)
-    }
+    val data =
+      try {
+        spec.supplier()
+      } catch (throwable: CancellationException) {
+        if (!currentCoroutineContext().isActive) throw throwable
+        if (throwable !is TimeoutCancellationException) throw throwable
+        return handleAttemptFailure(state, throwable)
+      } catch (throwable: Throwable) {
+        return handleAttemptFailure(state, throwable)
+      }
 
     state.attemptEndNano = nanoMillis
     state.lastThrowable = null
@@ -154,7 +156,7 @@ internal class TaskExecution<T>(
 
   private suspend fun handleAttemptFailure(
     state: ExecutionState,
-    throwable: Throwable,
+    throwable: Throwable
   ): ExecutionResult.Failure? {
     state.attemptEndNano = nanoMillis
     state.lastThrowable = throwable
@@ -168,9 +170,7 @@ internal class TaskExecution<T>(
     return retryFailure?.let { ExecutionResult.Failure(it, state.metrics()) }
   }
 
-  private fun evaluateAbortConditions(
-    throwable: Throwable,
-  ): Throwable? {
+  private fun evaluateAbortConditions(throwable: Throwable): Throwable? {
     for (condition in spec.abortConditions) {
       if (!condition.accepts(throwable)) continue
       try {
@@ -183,9 +183,7 @@ internal class TaskExecution<T>(
     return null
   }
 
-  private fun evaluateRetryConditions(
-    throwable: Throwable,
-  ): Throwable? {
+  private fun evaluateRetryConditions(throwable: Throwable): Throwable? {
     if (spec.retryConditions.isEmpty()) return null
 
     for (condition in spec.retryConditions) {
@@ -253,7 +251,7 @@ internal class TaskExecution<T>(
   private fun observe(
     source: ObserverSource,
     metrics: ExecutionMetrics,
-    block: () -> Unit,
+    block: () -> Unit
   ) {
     try {
       block()

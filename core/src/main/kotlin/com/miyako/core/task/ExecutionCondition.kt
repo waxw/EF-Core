@@ -5,10 +5,13 @@ import kotlin.reflect.KClass
 @PublishedApi
 internal class CompletionCondition<T : Any>(
   private val type: KClass<T>,
-  private val predicate: suspend (ExecutionAttempt<T>) -> Boolean,
+  private val predicate: suspend (ExecutionAttempt<T>) -> Boolean
 ) {
   @Suppress("UNCHECKED_CAST")
-  suspend fun matches(data: Any?, attempt: ExecutionAttempt<*>): Boolean {
+  suspend fun matches(
+    data: Any?,
+    attempt: ExecutionAttempt<*>
+  ): Boolean {
     return type.isInstance(data) && predicate(attempt as ExecutionAttempt<T>)
   }
 }
@@ -16,7 +19,7 @@ internal class CompletionCondition<T : Any>(
 @PublishedApi
 internal class AbortCondition<T : Throwable>(
   private val type: KClass<T>,
-  private val predicate: (T) -> Boolean,
+  private val predicate: (T) -> Boolean
 ) {
   fun accepts(throwable: Throwable): Boolean = type.isInstance(throwable)
 
@@ -27,7 +30,7 @@ internal class AbortCondition<T : Throwable>(
 @PublishedApi
 internal class RetryCondition<T : Throwable>(
   private val type: KClass<T>,
-  private val predicate: (T) -> Boolean,
+  private val predicate: (T) -> Boolean
 ) {
   fun accepts(throwable: Throwable): Boolean = type.isInstance(throwable)
 

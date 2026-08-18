@@ -7,7 +7,7 @@ import com.miyako.core.databinding.ItemRvBinding
 
 class RvAdapter(
   val dataList: List<String>
-): RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
   override fun onCreateViewHolder(
     parent: ViewGroup,
     viewType: Int
@@ -16,12 +16,15 @@ class RvAdapter(
     return ViewHolder(root)
   }
 
-  override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+  override fun onBindViewHolder(
+    holder: RecyclerView.ViewHolder,
+    position: Int
+  ) {
     "onBind: $position".debugLog()
     (holder as ViewHolder).binding.tvContent.text = dataList.get(position)
   }
 
   override fun getItemCount() = dataList.size
 
-  class ViewHolder(val binding: ItemRvBinding): RecyclerView.ViewHolder(binding.root)
+  class ViewHolder(val binding: ItemRvBinding) : RecyclerView.ViewHolder(binding.root)
 }

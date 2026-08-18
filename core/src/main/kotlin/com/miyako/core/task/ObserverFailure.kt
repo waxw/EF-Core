@@ -8,11 +8,11 @@ enum class ObserverSource {
   ON_EXHAUSTED,
   ON_TIMEOUT,
   ON_CANCEL,
-  ON_FINISHED,
+  ON_FINISHED
 }
 
 data class ObserverFailure(
   val source: ObserverSource,
   val throwable: Throwable,
-  val metrics: ExecutionMetrics,
+  val metrics: ExecutionMetrics
 )

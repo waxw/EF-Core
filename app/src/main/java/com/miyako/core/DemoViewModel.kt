@@ -16,7 +16,9 @@ class DemoViewModel : MviViewModel<DemoViewModel.UiState, UiEffect, UiAction>() 
 
   sealed class UiState : com.miyako.mvi.UiState {
     data object Loading : UiState()
+
     data object Error : UiState()
+
     data class Success(
       val groupId: Int,
       val list: List<String>
@@ -25,18 +27,22 @@ class DemoViewModel : MviViewModel<DemoViewModel.UiState, UiEffect, UiAction>() 
 
   sealed class UiAction : com.miyako.mvi.UiAction {
     data object Back : UiAction()
+
     data class Group(val settings: String) : UiAction()
+
     data class Item(val settings: Int) : UiAction()
   }
 
   init {
-    val unitReturn = defReturn<UiAction, Unit>(tag = "Unit") {
-      "def Unit".debugLog()
-    }
-    val intReturn = defReturn<UiAction, Int>(tag = "Int") {
-      "def Int".debugLog()
-      -233
-    }
+    val unitReturn =
+      defReturn<UiAction, Unit>(tag = "Unit") {
+        "def Unit".debugLog()
+      }
+    val intReturn =
+      defReturn<UiAction, Int>(tag = "Int") {
+        "def Int".debugLog()
+        -233
+      }
     Dispatcher.bind(this, unitReturn, intReturn)
   }
 
@@ -52,7 +58,6 @@ class DemoViewModel : MviViewModel<DemoViewModel.UiState, UiEffect, UiAction>() 
 
   @Action
   fun clickGroup(action: UiAction.Group) {
-
   }
 
   @Action

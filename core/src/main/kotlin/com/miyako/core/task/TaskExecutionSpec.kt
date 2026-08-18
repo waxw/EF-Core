@@ -2,7 +2,7 @@ package com.miyako.core.task
 
 internal enum class ExecutionMode {
   RETRY,
-  POLL,
+  POLL
 }
 
 internal data class TaskExecutionSpec<T>(
@@ -21,5 +21,5 @@ internal data class TaskExecutionSpec<T>(
   val onTimeout: ((ExecutionResult.Timeout) -> Unit)?,
   val onCancel: ((ExecutionMetrics) -> Unit)?,
   val onFinished: ((ExecutionMetrics) -> Unit)?,
-  val onObserverError: ((ObserverFailure) -> Unit)?,
+  val onObserverError: ((ObserverFailure) -> Unit)?
 )

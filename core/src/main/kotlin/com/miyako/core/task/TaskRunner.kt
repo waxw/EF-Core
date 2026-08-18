@@ -15,7 +15,7 @@ class TaskRunner<T> private constructor(
   intervalMs: Long,
   maxAttempts: Int,
   timeoutMs: Long,
-  private var supplier: (suspend () -> T)?,
+  private var supplier: (suspend () -> T)?
 ) {
   companion object {
     /** Builds a task that completes on the first successful supplier result. */
@@ -24,7 +24,7 @@ class TaskRunner<T> private constructor(
       intervalMs: Long = 0,
       maxAttempts: Int = 1,
       timeoutMs: Long = 0,
-      supplier: suspend () -> T,
+      supplier: suspend () -> T
     ): TaskRunner<T> {
       return TaskRunner(ExecutionMode.RETRY, initialDelayMs, intervalMs, maxAttempts, timeoutMs, supplier)
     }
@@ -35,7 +35,7 @@ class TaskRunner<T> private constructor(
       initialDelayMs: Long = 0,
       intervalMs: Long = 0,
       timeoutMs: Long = 0,
-      supplier: suspend () -> T,
+      supplier: suspend () -> T
     ): TaskRunner<T> {
       return TaskRunner(ExecutionMode.POLL, initialDelayMs, intervalMs, maxAttempts, timeoutMs, supplier)
     }
@@ -59,81 +59,93 @@ class TaskRunner<T> private constructor(
   private var onFinished: ((ExecutionMetrics) -> Unit)? = null
   private var onObserverError: ((ObserverFailure) -> Unit)? = null
 
-  private fun configure(block: () -> Unit): TaskRunner<T> = apply {
-    synchronized(configurationLock) {
-      check(!executed.get()) { "Cannot modify after execution starts" }
-      block()
+  private fun configure(block: () -> Unit): TaskRunner<T> =
+    apply {
+      synchronized(configurationLock) {
+        check(!executed.get()) { "Cannot modify after execution starts" }
+        block()
+      }
     }
-  }
 
   inline fun <reified E : Any> completeWhen(
-    noinline predicate: suspend (ExecutionAttempt<E>) -> Boolean,
+    noinline predicate: suspend (ExecutionAttempt<E>) -> Boolean
   ): TaskRunner<T> = addCompletionCondition(CompletionCondition(E::class, predicate))
 
-  inline fun <reified E : Throwable> abortOn(
-    noinline predicate: (E) -> Boolean = { true },
-  ): TaskRunner<T> = addAbortCondition(AbortCondition(E::class, predicate))
+  inline fun <reified E : Throwable> abortOn(noinline predicate: (E) -> Boolean = { true }): TaskRunner<T> =
+    addAbortCondition(AbortCondition(E::class, predicate))
 
   /** Restricts retries to failures accepted by at least one retry condition. [abortOn] takes precedence. */
-  inline fun <reified E : Throwable> retryOn(
-    noinline predicate: (E) -> Boolean = { true },
-  ): TaskRunner<T> = addRetryCondition(RetryCondition(E::class, predicate))
+  inline fun <reified E : Throwable> retryOn(noinline predicate: (E) -> Boolean = { true }): TaskRunner<T> =
+    addRetryCondition(RetryCondition(E::class, predicate))
 
-  fun beforeRetry(block: suspend (RetryContext) -> Unit): TaskRunner<T> = configure {
-    beforeRetry = block
-  }
+  fun beforeRetry(block: suspend (RetryContext) -> Unit): TaskRunner<T> =
+    configure {
+      beforeRetry = block
+    }
 
-  fun onAttemptSuccess(observer: (ExecutionAttempt<T>) -> Unit): TaskRunner<T> = configure {
-    onAttemptSuccess = observer
-  }
+  fun onAttemptSuccess(observer: (ExecutionAttempt<T>) -> Unit): TaskRunner<T> =
+    configure {
+      onAttemptSuccess = observer
+    }
 
-  fun onAttemptFailure(observer: (ExecutionAttempt<Throwable>) -> Unit): TaskRunner<T> = configure {
-    onAttemptFailure = observer
-  }
+  fun onAttemptFailure(observer: (ExecutionAttempt<Throwable>) -> Unit): TaskRunner<T> =
+    configure {
+      onAttemptFailure = observer
+    }
 
-  fun onSuccess(observer: (ExecutionResult.Success<T>) -> Unit): TaskRunner<T> = configure {
-    onSuccess = observer
-  }
+  fun onSuccess(observer: (ExecutionResult.Success<T>) -> Unit): TaskRunner<T> =
+    configure {
+      onSuccess = observer
+    }
 
-  fun onFailure(observer: (ExecutionResult.Failure) -> Unit): TaskRunner<T> = configure {
-    onFailure = observer
-  }
+  fun onFailure(observer: (ExecutionResult.Failure) -> Unit): TaskRunner<T> =
+    configure {
+      onFailure = observer
+    }
 
-  fun onExhausted(observer: (ExecutionResult.Exhausted) -> Unit): TaskRunner<T> = configure {
-    onExhausted = observer
-  }
+  fun onExhausted(observer: (ExecutionResult.Exhausted) -> Unit): TaskRunner<T> =
+    configure {
+      onExhausted = observer
+    }
 
-  fun onTimeout(observer: (ExecutionResult.Timeout) -> Unit): TaskRunner<T> = configure {
-    onTimeout = observer
-  }
+  fun onTimeout(observer: (ExecutionResult.Timeout) -> Unit): TaskRunner<T> =
+    configure {
+      onTimeout = observer
+    }
 
-  fun onCancel(observer: (ExecutionMetrics) -> Unit): TaskRunner<T> = configure {
-    onCancel = observer
-  }
+  fun onCancel(observer: (ExecutionMetrics) -> Unit): TaskRunner<T> =
+    configure {
+      onCancel = observer
+    }
 
-  fun onFinished(observer: (ExecutionMetrics) -> Unit): TaskRunner<T> = configure {
-    onFinished = observer
-  }
+  fun onFinished(observer: (ExecutionMetrics) -> Unit): TaskRunner<T> =
+    configure {
+      onFinished = observer
+    }
 
-  fun onObserverError(observer: (ObserverFailure) -> Unit): TaskRunner<T> = configure {
-    onObserverError = observer
-  }
-
-  @PublishedApi
-  internal fun <E : Any> addCompletionCondition(condition: CompletionCondition<E>): TaskRunner<T> = configure {
-    check(mode != ExecutionMode.RETRY) { "completeWhen is only supported by TaskRunner.poll" }
-    completionConditions.add(condition)
-  }
-
-  @PublishedApi
-  internal fun <E : Throwable> addAbortCondition(condition: AbortCondition<E>): TaskRunner<T> = configure {
-    abortConditions.add(condition)
-  }
+  fun onObserverError(observer: (ObserverFailure) -> Unit): TaskRunner<T> =
+    configure {
+      onObserverError = observer
+    }
 
   @PublishedApi
-  internal fun <E : Throwable> addRetryCondition(condition: RetryCondition<E>): TaskRunner<T> = configure {
-    retryConditions.add(condition)
-  }
+  internal fun <E : Any> addCompletionCondition(condition: CompletionCondition<E>): TaskRunner<T> =
+    configure {
+      check(mode != ExecutionMode.RETRY) { "completeWhen is only supported by TaskRunner.poll" }
+      completionConditions.add(condition)
+    }
+
+  @PublishedApi
+  internal fun <E : Throwable> addAbortCondition(condition: AbortCondition<E>): TaskRunner<T> =
+    configure {
+      abortConditions.add(condition)
+    }
+
+  @PublishedApi
+  internal fun <E : Throwable> addRetryCondition(condition: RetryCondition<E>): TaskRunner<T> =
+    configure {
+      retryConditions.add(condition)
+    }
 
   /**
    * Executes this runner and returns its successful data.
@@ -153,14 +165,15 @@ class TaskRunner<T> private constructor(
 
   /** Executes this runner and returns its structured terminal result. */
   suspend fun executeResult(): ExecutionResult<T> {
-    val spec = synchronized(configurationLock) {
-      check(executed.compareAndSet(false, true)) { "TaskRunner can only be executed once" }
-      try {
-        buildSpec()
-      } finally {
-        cleanUp()
+    val spec =
+      synchronized(configurationLock) {
+        check(executed.compareAndSet(false, true)) { "TaskRunner can only be executed once" }
+        try {
+          buildSpec()
+        } finally {
+          cleanUp()
+        }
       }
-    }
     return TaskExecution(spec).execute()
   }
 

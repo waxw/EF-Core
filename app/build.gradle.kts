@@ -55,8 +55,9 @@ android {
 dependencies {
 
   implementation(project(":core"))
-  implementation(project(":ksp"))
-  ksp(project(":ksp"))
+  implementation(project(":core-ui"))
+  implementation(project(":core-ksp"))
+  ksp(project(":core-ksp"))
 
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)

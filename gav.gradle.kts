@@ -26,7 +26,8 @@ import java.util.Locale
 /** 各发布模块的 artifactId（按项目名） */
 val gavArtifactIds = mapOf(
   "core" to "core",
-  "ksp" to "core-ksp",
+  "core-ui" to "core-ui",
+  "core-ksp" to "core-ksp",
 )
 
 // 版本只解析一次，注入所有子项目

@@ -31,7 +31,10 @@ inline fun Boolean?.ifFalse(block: () -> Unit): Boolean? {
   return this
 }
 
-inline fun <T> T.thenIf(condition: Boolean, block: T.() -> T): T {
+inline fun <T> T.thenIf(
+  condition: Boolean,
+  block: T.() -> T
+): T {
   return if (condition) block() else this
 }
 
@@ -49,7 +52,10 @@ inline fun <reified T> Any?.cast(onMatch: T.() -> Unit) {
   if (this is T) onMatch(this)
 }
 
-inline fun <reified T, R> Any?.cast(onNotMatch: (Any?) -> R, onMatch: T.() -> R): R {
+inline fun <reified T, R> Any?.cast(
+  onNotMatch: (Any?) -> R,
+  onMatch: T.() -> R
+): R {
   return if (this is T) onMatch(this) else onNotMatch(this)
 }
 

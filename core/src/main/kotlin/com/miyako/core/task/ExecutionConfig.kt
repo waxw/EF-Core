@@ -4,7 +4,7 @@ data class ExecutionConfig(
   val initialDelayMs: Long = 0L,
   val retryIntervalMs: Long = 0L,
   val maxAttempts: Int = 1,
-  val totalTimeoutMs: Long = 0L,
+  val totalTimeoutMs: Long = 0L
 ) {
   init {
     require(maxAttempts >= 1) { "maxAttempts must be >= 1" }

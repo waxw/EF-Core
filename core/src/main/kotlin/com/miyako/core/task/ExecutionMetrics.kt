@@ -5,7 +5,7 @@ enum class ExecutionPhase {
   ATTEMPT,
   RETRY_DELAY,
   BEFORE_RETRY,
-  COMPLETION_CONDITION,
+  COMPLETION_CONDITION
 }
 
 data class ExecutionMetrics(
@@ -13,5 +13,5 @@ data class ExecutionMetrics(
   val attemptStartTime: Long?,
   val attemptDuration: Long?,
   val totalDuration: Long,
-  val phase: ExecutionPhase,
+  val phase: ExecutionPhase
 )
