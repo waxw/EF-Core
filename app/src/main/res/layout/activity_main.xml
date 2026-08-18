@@ -48,6 +48,27 @@
       android:gravity="center"
       android:text="English" />
 
+    <Button
+      android:id="@+id/btnBubble"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="气泡-顶部" />
+
+    <Button
+      android:id="@+id/btnBubbleCenter"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="气泡-居中" />
+
+    <Button
+      android:id="@+id/btnBubbleCustom"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="气泡-底部" />
+
     <androidx.recyclerview.widget.RecyclerView
       android:id="@+id/rvList"
       android:layout_width="match_parent"
