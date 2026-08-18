@@ -13,6 +13,17 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -135,6 +146,64 @@ class MainActivity : AppCompatActivity() {
 
     binding.scaffold.reInflate()
 
+    // ComposeBubble 演示：内容为 @Composable，堆叠/动画/手势逻辑复用 core-ui 的 BubbleManager
+    val systemBarsInsets =
+      ViewCompat.getRootWindowInsets(window.decorView)?.getInsets(WindowInsetsCompat.Type.systemBars())
+    val statusBarHeight = systemBarsInsets?.top ?: 0
+    val navBarHeight = systemBarsInsets?.bottom ?: 0
+
+    binding.btnComposeBubbleTop.setOnClickListener {
+      com.miyako.compose.bubble.showBubble {
+        position = BubblePosition.TOP
+        margin = statusBarHeight
+        onClick = { "compose bubble top clicked".debugLog() }
+        onDismiss = { "compose bubble top dismissed".debugLog() }
+        content = {
+          BubbleCard(
+            title = "Compose 气泡 TOP",
+            subtitle = "core-compose · 复用 core-ui BubbleManager",
+            container = Color(0xFF3F51B5)
+          )
+        }
+      }
+    }
+
+    binding.btnComposeBubbleCenter.setOnClickListener {
+      com.miyako.compose.bubble.showBubble {
+        position = BubblePosition.CENTER
+        onClick = { "compose bubble center clicked".debugLog() }
+        onDismiss = { "compose bubble center dismissed".debugLog() }
+        content = {
+          BubbleCard(
+            title = "Compose 气泡 CENTER",
+            subtitle = "垂直居中",
+            container = Color(0xFF009688)
+          )
+        }
+      }
+    }
+
+    binding.btnComposeBubbleBottom.setOnClickListener {
+      com.miyako.compose.bubble.showBubble {
+        position = BubblePosition.BOTTOM
+        margin = navBarHeight
+        onClick = { "compose bubble bottom clicked".debugLog() }
+        onDismiss = { "compose bubble bottom dismissed".debugLog() }
+        content = {
+          BubbleCard(
+            title = "Compose 气泡 BOTTOM",
+            subtitle = "底部，类似 Toast",
+            container = Color(0xFFF44336)
+          )
+        }
+      }
+    }
+
+    binding.btnDismissBubbles.setOnClickListener {
+      dismissAllBubbles()
+      "all compose bubbles dismissed".debugLog()
+    }
+
     // 应用内气泡（View）演示：三个位置（TOP/CENTER/BOTTOM），连点可体验堆叠效果
     binding.btnBubble.setOnClickListener {
       showBubble {
@@ -195,6 +264,30 @@ class MainActivity : AppCompatActivity() {
           setPadding(0, 4.coreDp, 0, 0)
         }
       )
+    }
+  }
+
+  @Composable
+  private fun BubbleCard(title: String, subtitle: String, container: Color) {
+    Card(
+      modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp),
+      colors = CardDefaults.cardColors(containerColor = container),
+      elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    ) {
+      Column(modifier = Modifier.padding(16.dp)) {
+        Text(
+          text = title,
+          color = Color.White,
+          style = MaterialTheme.typography.titleMedium
+        )
+        Text(
+          text = subtitle,
+          color = Color.White.copy(alpha = 0.85f),
+          style = MaterialTheme.typography.bodySmall
+        )
+      }
     }
   }
 

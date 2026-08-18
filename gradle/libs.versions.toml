@@ -32,6 +32,7 @@ compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = 
 compose-runtime = { group = "androidx.compose.runtime", name = "runtime" }
 compose-ui = { group = "androidx.compose.ui", name = "ui" }
 compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 compose-activity = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 # 编写注解处理器需要
 ksp-symbol-api = { module = "com.google.devtools.ksp:symbol-processing-api", version.ref = "ksp" }

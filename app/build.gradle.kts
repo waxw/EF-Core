@@ -1,6 +1,7 @@
 plugins {
   alias(libs.plugins.androidApplication)
   alias(libs.plugins.jetbrainsKotlinAndroid)
+  alias(libs.plugins.jetbrainsKotlinCompose)
   alias(libs.plugins.ksp)
 }
 
@@ -42,6 +43,7 @@ android {
 
   buildFeatures {
     viewBinding = true
+    compose = true
   }
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -56,8 +58,15 @@ dependencies {
 
   implementation(project(":core"))
   implementation(project(":core-ui"))
+  implementation(project(":core-compose"))
   implementation(project(":core-ksp"))
   ksp(project(":core-ksp"))
+
+  // ComposeBubble 演示用
+  implementation(platform(libs.compose.bom))
+  implementation(libs.compose.ui)
+  implementation(libs.compose.foundation)
+  implementation(libs.compose.material3)
 
   implementation(libs.androidx.core.ktx)
   implementation(libs.androidx.appcompat)

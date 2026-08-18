@@ -69,6 +69,34 @@
       android:gravity="center"
       android:text="气泡-底部" />
 
+    <Button
+      android:id="@+id/btnComposeBubbleTop"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="Compose 气泡 TOP" />
+
+    <Button
+      android:id="@+id/btnComposeBubbleCenter"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="Compose 气泡 CENTER" />
+
+    <Button
+      android:id="@+id/btnComposeBubbleBottom"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="Compose 气泡 BOTTOM" />
+
+    <Button
+      android:id="@+id/btnDismissBubbles"
+      android:layout_width="match_parent"
+      android:layout_height="44dp"
+      android:gravity="center"
+      android:text="关闭全部气泡" />
+
     <androidx.recyclerview.widget.RecyclerView
       android:id="@+id/rvList"
       android:layout_width="match_parent"
