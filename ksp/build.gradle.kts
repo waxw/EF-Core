@@ -7,9 +7,16 @@ plugins {
   alias(libs.plugins.vanniktechMavenPublish)
 }
 
-val gavGroupId = "io.github.waxw"
-val gavArtifactId = "core-ksp"
-val gavVersion = "0.0.5-SNAPSHOT"
+// gav 坐标与版本策略统一见根目录 gav.gradle.kts（subprojects 注入，类型化读取）
+val gavGroupId: String by extra
+val gavArtifactId: String by extra
+val gavBaseVersion: String by extra
+
+/**
+ * 版本策略见 gav.gradle.kts：
+ * 开发阶段 `0.0.5-<commit 短哈希>-<时间戳>`；正式发布使用纯版本号 `0.0.5`。
+ */
+val gavVersion: String by extra
 
 java {
   sourceCompatibility = JavaVersion.VERSION_17

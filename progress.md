@@ -105,3 +105,38 @@
   - `git diff --check` 通过。
 - Error log:
   - Phase 7 状态补丁首次混用了两个文档的上下文，未产生文件修改；读取局部内容后使用分文件补丁修正。
+
+## Session: 2026-08-18
+
+### core/ksp gav 动态版本（分支 0.0.5，独立脚本 gav.gradle.kts）
+- **Status:** 实现与静态审查完成；Gradle 验证按用户要求跳过
+- Actions taken:
+  - **gav 坐标与版本策略全部收敛到独立脚本 `gav.gradle.kts`**（用户要求不放在根 build.gradle.kts）：`gavArtifactIds`（按项目名映射 core->core / ksp->core-ksp）、`resolvedGavVersion`（只解析一次），经 `subprojects {}` 注入各子项目 extra（gavGroupId / gavArtifactId / gavBaseVersion / gavVersion）；`resolveGavVersion()`（发布判定 + 版本拼接）、`gitCommitShort()`（`git rev-parse --short HEAD`，失败回退 "unknown"）、`gitTagsAtHead()`（`git tag --points-at HEAD`）。
+  - 根 `build.gradle.kts` 仅保留一行 `apply(from = "gav.gradle.kts")` 加载脚本。
+  - **core / ksp 用类型化 delegate 读取**（用户要求，替代 rootProject.extra cast）：
+    ```kotlin
+    val gavGroupId: String by extra
+    val gavArtifactId: String by extra
+    val gavBaseVersion: String by extra
+    val gavVersion: String by extra
+    ```
+  - core 的 debug 变体 `"$gavArtifactId-debug"` 自动派生。
+  - 版本策略：开发阶段 `0.0.5-<commit 短哈希>-<yyyyMMddHHmmss>`（如 `0.0.5-ce65d4e-20260818100507`）；正式发布使用纯版本号 `0.0.5`。
+  - 正式发布触发条件（任一）：`-Prelease=true`、环境变量 `RELEASE=true`、当前 commit 命中 `0.0.5`/`v0.0.5` tag。
+  - `gavVersion` 同时作用于 core 的 release 发布与 debug 变体（`core-debug`），以及 ksp 的 `core-ksp`。
+- Verification:
+  - git helper 命令行实测：`rev-parse --short HEAD` → ce65d4e；`tag --points-at HEAD` → 空（开发模式生效）。
+  - 模拟开发版本：`0.0.5-ce65d4e-20260818100507`；`git diff --check` 通过。
+  - 静态检查：根脚本无 gav 逻辑残留（仅 apply 行）；无 `0.0.5-SNAPSHOT` / 重复 helper 残留；未编译（用户要求）。
+
+## 2026-08-18 测试发布（mavenLocal，用户要求）
+
+- **Status:** 通过
+- Actions taken:
+  - `./gradlew :core:publishToMavenLocal`（开发模式）→ 发布至 `~/.m2/io/github/waxw/core/0.0.5-ce65d4e-20260818110448/`，含 aar/pom/sources/javadoc + `.asc` 签名，`core-debug` 同步发布。
+  - `./gradlew :ksp:publishToMavenLocal` → `io.github.waxw:core-ksp:0.0.5-ce65d4e-20260818110524`。
+  - `./gradlew :core:publishToMavenLocal -Prelease=true` → 发布至 `0.0.5/`（纯版本号），pom `<version>0.0.5</version>` 确认。
+- Verification:
+  - 开发模式版本 `0.0.5-<sha7>-<yyyyMMddHHmmss>` ✅；正式发布 `-Prelease=true` → `0.0.5` ✅。
+  - 签名（signAllPublications）在 mavenLocal 发布链路正常（.asc 产物生成）。
+  - 沙箱升级说明：Gradle 写 `~/.gradle`/`~/.m2` 需 danger-full-access，本次测试发布在用户授权下完成。
