@@ -1,5 +1,4 @@
 import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
-import org.gradle.api.publish.maven.MavenPublication
 
 plugins {
   alias(libs.plugins.androidLibrary)
@@ -47,13 +46,6 @@ android {
     targetCompatibility = JavaVersion.VERSION_17
   }
 
-  publishing {
-    singleVariant("debug") {
-      withSourcesJar()
-      withJavadocJar()
-    }
-  }
-
 }
 
 dependencies {
@@ -92,23 +84,6 @@ mavenPublishing {
   pom {
     name.set("EF-Core UI")
     configurePomMetadata()
-  }
-}
-
-afterEvaluate {
-  publishing {
-    publications {
-      register<MavenPublication>("debug") {
-        from(components["debug"])
-        groupId = gavGroupId
-        artifactId = "$gavArtifactId-debug"
-        version = gavVersion
-
-        pom {
-          name.set("EF-Core UI Debug")
-        }
-      }
-    }
   }
 }
 

@@ -48,13 +48,14 @@ class ComposeBubbleSpec {
 
   /** 转换为 core-ui 的 [BubbleSpec]，内容用 [ComposeView] 承载 */
   internal fun toBubbleSpec(): BubbleSpec = BubbleSpec().apply {
-    this.position = position
-    this.durationMs = durationMs
-    this.margin = margin
-    this.onClick = onClick
-    this.onDismiss = onDismiss
-    val composableContent = content
-    require(composableContent != null) { "气泡内容不能为空，请设置 content" }
+    // apply 的隐式接收者是 BubbleSpec，外层 ComposeBubbleSpec 属性需显式限定
+    position = this@ComposeBubbleSpec.position
+    durationMs = this@ComposeBubbleSpec.durationMs
+    margin = this@ComposeBubbleSpec.margin
+    onClick = this@ComposeBubbleSpec.onClick
+    onDismiss = this@ComposeBubbleSpec.onDismiss
+    val composableContent: @Composable () -> Unit = this@ComposeBubbleSpec.content
+      ?: throw IllegalArgumentException("气泡内容不能为空，请设置 content")
     this.content = { parent ->
       ComposeView(parent.context).apply {
         setContent { composableContent() }

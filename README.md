@@ -41,8 +41,6 @@ implementation("io.github.waxw:core-compose:0.0.5")
 ksp("io.github.waxw:core-ksp:0.0.5")
 ```
 
-`:core-ui`、`:core-compose` 额外发布 `-debug` 变体（`io.github.waxw:core-ui-debug` 等），供调试依赖使用。
-
 > Compose 注意：`:core-compose` 的 Compose 依赖是 `implementation` 作用域，
 > 调用方需自行应用 `org.jetbrains.kotlin.plugin.compose` 并声明 compose BOM 与所需依赖。
 

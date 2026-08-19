@@ -31,6 +31,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.miyako.core.bubble.BubblePosition
 import com.miyako.core.bubble.dismissAllBubbles
 import com.miyako.core.bubble.showBubble
+import com.miyako.compose.bubble.showBubble as composeShowBubble
 import com.miyako.core.databinding.ActivityMainBinding
 import com.miyako.core.dp as coreDp
 import com.miyako.core.rv.ScaffoldBody
@@ -153,7 +154,7 @@ class MainActivity : AppCompatActivity() {
     val navBarHeight = systemBarsInsets?.bottom ?: 0
 
     binding.btnComposeBubbleTop.setOnClickListener {
-      com.miyako.compose.bubble.showBubble {
+      composeShowBubble {
         position = BubblePosition.TOP
         margin = statusBarHeight
         onClick = { "compose bubble top clicked".debugLog() }
@@ -169,7 +170,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     binding.btnComposeBubbleCenter.setOnClickListener {
-      com.miyako.compose.bubble.showBubble {
+      composeShowBubble {
         position = BubblePosition.CENTER
         onClick = { "compose bubble center clicked".debugLog() }
         onDismiss = { "compose bubble center dismissed".debugLog() }
@@ -184,7 +185,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     binding.btnComposeBubbleBottom.setOnClickListener {
-      com.miyako.compose.bubble.showBubble {
+      composeShowBubble {
         position = BubblePosition.BOTTOM
         margin = navBarHeight
         onClick = { "compose bubble bottom clicked".debugLog() }

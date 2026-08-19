@@ -1,6 +1,8 @@
 package com.miyako.compose.bubble
 
 import androidx.activity.ComponentActivity
+import com.miyako.core.bubble.bubbleManager as coreBubbleManager
+import com.miyako.core.bubble.dismissAllBubbles as coreDismissAllBubbles
 
 /**
  * 复用 core-ui 的 View 版气泡类型，让 Compose 调用方从一个包导入全部 API。
@@ -16,7 +18,7 @@ typealias BubbleManager = com.miyako.core.bubble.BubbleManager
 /**
  * 获取当前 Activity 的气泡管理器（core-ui 实现），同一 Activity 共享同一实例。
  */
-fun ComponentActivity.bubbleManager(): BubbleManager = com.miyako.core.bubble.bubbleManager()
+fun ComponentActivity.bubbleManager(): BubbleManager = coreBubbleManager()
 
 /**
  * 在当前 Activity 中弹出一个 Compose 气泡，用法：
@@ -45,4 +47,4 @@ fun ComponentActivity.showBubble(spec: ComposeBubbleSpec): BubbleView =
   bubbleManager().show(spec.toBubbleSpec())
 
 /** 关闭当前 Activity 的全部气泡（复用 core-ui 实现） */
-fun ComponentActivity.dismissAllBubbles() = com.miyako.core.bubble.dismissAllBubbles()
+fun ComponentActivity.dismissAllBubbles() = coreDismissAllBubbles()
