@@ -63,6 +63,7 @@
 - 多个 `retryOn` 的按顺序 OR 短路语义已有公开行为测试覆盖。
 
 ## 2026-09-03 KMP Migration Findings
+- `0.0.5` 已通过 PR #37 合入 `main`；KMP 迁移独立放在 `feature_kmp`，预发布版本提升为 `0.1.0-alpha-01`。
 - 用户决定将现有 `:core` 原地迁移为 KMP，并将 `:core-ui` 重命名为 `:core-android`。
 - `:core` 的公共逻辑大部分可进入 `commonMain`；当前 JVM 专属点是 `java.util.Locale`/`javaClass`、`AtomicBoolean`/`synchronized`、`System.nanoTime`/`System.currentTimeMillis`。
 - 当前 `:core-compose` 通过 `ComponentActivity`、`ComposeView` 和 `api(project(":core-ui"))` 复用 Android View 气泡，因此本轮保持 Android Compose 模块，只更新对 `:core-android` 的依赖。

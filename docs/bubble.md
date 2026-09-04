@@ -7,7 +7,7 @@
 ## 依赖
 
 ```kotlin
-implementation("io.github.waxw:core-android:0.0.5")
+implementation("io.github.waxw:core-android:0.1.0-alpha-01")
 // 或源码模块
 implementation(project(":core-android"))
 ```

@@ -36,10 +36,10 @@ ksp(project(":core-ksp"))   // MVI 代码生成（需应用 ksp 插件）
 ### Maven 坐标
 
 ```kotlin
-implementation("io.github.waxw:core:0.0.5")
-implementation("io.github.waxw:core-android:0.0.5")
-implementation("io.github.waxw:core-compose:0.0.5")
-ksp("io.github.waxw:core-ksp:0.0.5")
+implementation("io.github.waxw:core:0.1.0-alpha-01")
+implementation("io.github.waxw:core-android:0.1.0-alpha-01")
+implementation("io.github.waxw:core-compose:0.1.0-alpha-01")
+ksp("io.github.waxw:core-ksp:0.1.0-alpha-01")
 ```
 
 > Compose 注意：`:core-compose` 的 Compose 依赖是 `implementation` 作用域，
@@ -55,20 +55,20 @@ ksp("io.github.waxw:core-ksp:0.0.5")
 
 ## 发布
 
-版本策略统一在根目录 `gav.gradle.kts`（`0.0.5`）：
+版本策略统一在根目录 `gav.gradle.kts`（`0.1.0-alpha-01`）：
 
-- **开发版**：`0.0.5-<commit 短哈希>-<时间戳>`，如 `0.0.5-f3922df-20260818123000`
-- **正式版**：`0.0.5`，满足任一条件触发：
+- **开发版**：`0.1.0-alpha-01-<commit 短哈希>-<时间戳>`，如 `0.1.0-alpha-01-f3922df-20260904123000`
+- **发布版**：`0.1.0-alpha-01`，满足任一条件触发：
   1. `./gradlew publish -Prelease=true`
   2. 环境变量 `RELEASE=true`
-  3. 当前 commit 命中 tag `0.0.5` 或 `v0.0.5`
+  3. 当前 commit 命中 tag `0.1.0-alpha-01` 或 `v0.1.0-alpha-01`
 
 ```bash
 # 发布到本地 Maven 仓库（开发版）
 ./gradlew :core:publishToMavenLocal :core-android:publishToMavenLocal \
   :core-compose:publishToMavenLocal :core-ksp:publishToMavenLocal
 
-# 发布到 Maven Central（vanniktech 插件，自动签名；需先满足正式版条件）
+# 发布到 Maven Central（vanniktech 插件，自动签名；需先满足发布版条件）
 ./gradlew publish -Prelease=true
 ```
 

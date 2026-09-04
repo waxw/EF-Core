@@ -17,7 +17,7 @@ val gavBaseVersion: String by extra
 
 /**
  * 版本策略见 gav.gradle.kts：
- * 开发阶段 `0.0.5-<commit 短哈希>-<时间戳>`；正式发布使用纯版本号 `0.0.5`。
+ * 开发阶段 `0.1.0-alpha-01-<commit 短哈希>-<时间戳>`；发布使用纯版本号 `0.1.0-alpha-01`。
  */
 val gavVersion: String by extra
 

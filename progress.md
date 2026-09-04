@@ -146,6 +146,7 @@
 ### Phase 8: core KMP 与 core-android 模块迁移
 - **Status:** complete
 - Actions taken:
+  - 将 0.0.5 通过 PR #37 合入 main，并从合并后的 main 创建 `feature_kmp`；KMP 迁移预发布版本更新为 `0.1.0-alpha-01`。
   - 读取项目结构、Gradle 配置、平台 import、Kotlin 风格和架构参考。
   - 确认 `:core` 的 JVM 专属 API 边界及 `:core-compose` 的 Android-only 属性。
   - 确认保留用户已有的 README、base extensions 和 TaskRunner 移植规范改动。

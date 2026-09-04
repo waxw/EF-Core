@@ -55,6 +55,7 @@ Complete
 - **Status:** complete
 
 ### Phase 8: core KMP 与 core-android 模块迁移
+- [x] 从已合并 0.0.5 的 main 创建 `feature_kmp`，将预发布版本提升为 `0.1.0-alpha-01`
 - [x] 确认 KMP target、发布配置和 JVM 专属 API 边界
 - [x] 将 `:core` 转为 Kotlin Multiplatform，并迁移 source set
 - [x] 将 `:core-ui` 重命名为 `:core-android`，同步依赖与文档

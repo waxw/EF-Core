@@ -14,10 +14,10 @@ import java.util.Locale
  * ```
  *
  * 版本规则：
- * - 开发阶段：`<base>-<commit 短哈希>-<时间戳 yyyyMMddHHmmss>`，如 `0.0.5-a1b2c3d-20260818183000`
- * - 正式发布：使用纯版本号 `<base>`
+ * - 开发阶段：`<base>-<commit 短哈希>-<时间戳 yyyyMMddHHmmss>`，如 `0.1.0-alpha-01-a1b2c3d-20260904183000`
+ * - 发布：使用纯版本号 `<base>`
  *
- * 正式发布触发条件（任一满足）：
+ * 发布版本触发条件（任一满足）：
  * 1. Gradle 属性：`./gradlew publish -Prelease=true`
  * 2. 环境变量：`RELEASE=true ./gradlew publish`
  * 3. 当前 commit 命中 `<base>` 或 `v<base>` 的 Git tag
@@ -32,12 +32,12 @@ val gavArtifactIds = mapOf(
 )
 
 // 版本只解析一次，注入所有子项目
-val resolvedGavVersion = resolveGavVersion("0.0.5")
+val resolvedGavVersion = resolveGavVersion("0.1.0-alpha-01")
 
 subprojects {
   extra["gavGroupId"] = "io.github.waxw"
   extra["gavArtifactId"] = gavArtifactIds[name] ?: name
-  extra["gavBaseVersion"] = "0.0.5"
+  extra["gavBaseVersion"] = "0.1.0-alpha-01"
   extra["gavVersion"] = resolvedGavVersion
 }
 
