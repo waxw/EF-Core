@@ -61,3 +61,14 @@
 - `executeResult()` 使用 `try/finally`，规格构建失败时也会清理已冻结 runner 持有的 supplier、条件和 observer 引用。
 - `abortOn`/`retryOn` predicate 原样重抛 attempt throwable 时不再执行 self-suppression，仍返回包含原异常的结构化 Failure。
 - 多个 `retryOn` 的按顺序 OR 短路语义已有公开行为测试覆盖。
+
+## 2026-09-03 KMP Migration Findings
+- 用户决定将现有 `:core` 原地迁移为 KMP，并将 `:core-ui` 重命名为 `:core-android`。
+- `:core` 的公共逻辑大部分可进入 `commonMain`；当前 JVM 专属点是 `java.util.Locale`/`javaClass`、`AtomicBoolean`/`synchronized`、`System.nanoTime`/`System.currentTimeMillis`。
+- 当前 `:core-compose` 通过 `ComponentActivity`、`ComposeView` 和 `api(project(":core-ui"))` 复用 Android View 气泡，因此本轮保持 Android Compose 模块，只更新对 `:core-android` 的依赖。
+- 当前 `:core-ksp` 是 JVM 构建工具，且 Dispatcher runtime 使用 JVM reflection，本轮不迁移为 KMP。
+- KMP 默认 Android target 会派生 `core-android` 平台制品，与重命名后的 Android UI 模块坐标冲突；KMP target 使用 `androidCore` 名称规避冲突，公共依赖入口仍为 `io.github.waxw:core`。
+- TaskRunner 使用 `kotlin.time.TimeSource.Monotonic` 计算 duration；墙上时间通过 `currentTimeMillis()` expect/actual 提供。
+- 为保持现有 one-shot 与配置冻结并发契约，公共实现使用 `kotlinx.atomicfu` 的原子值和同步锁，不降级为普通 Boolean。
+- Android、Desktop JVM、iOS Simulator ARM64 的 `core` 公共测试均为 43/43 通过；iOS device ARM64 与 Simulator x64 主源码也编译通过。
+- Kotlin 2.0 对 Xcode 26.6 给出“高于最大已测试版本 15.3”的兼容性警告；本轮实际编译、链接和测试均成功，因此保留警告而不添加 suppress 配置。

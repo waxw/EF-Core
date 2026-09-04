@@ -1,7 +1,12 @@
 package com.miyako.core
 
-import org.junit.Assert
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class BaseExtensionsUnitTest {
   @Test
@@ -15,43 +20,43 @@ class BaseExtensionsUnitTest {
       result.orInit {
         emptyList()
       }
-    Assert.assertNull(obj)
-    Assert.assertNotNull(result)
-    Assert.assertNotSame(result1, emptyList<Int>())
+    assertNull(obj)
+    assertNotNull(result)
+    assertNotSame(result1, emptyList<Int>())
   }
 
   @Test
   fun test_ifTrue() {
     val cnt = 10
     (cnt == 10).ifTrue {
-      Assert.assertTrue(true)
+      assertTrue(true)
       return
     }
-    Assert.assertTrue(false)
+    assertTrue(false)
   }
 
   @Test
   fun test_ifFalse() {
     val cnt = 10
     (cnt == 1).ifFalse {
-      Assert.assertFalse(false)
+      assertFalse(false)
       return
     }
-    Assert.assertTrue(true)
+    assertTrue(true)
   }
 
   @Test
   fun test_unsafeLazy() {
     val obj by unsafeLazy { emptyList<Int>() }
-    Assert.assertNotNull(obj)
-    Assert.assertEquals(obj, emptyList<Int>())
+    assertNotNull(obj)
+    assertEquals(obj, emptyList<Int>())
   }
 
   @Test
   fun test_hex() {
     val objHex = 255.hex
-    Assert.assertEquals(objHex, "Integer@0x000000FF")
-    Assert.assertNotSame(objHex, "Integer@0x000000FF")
+    assertTrue(objHex.substringBefore('@').isNotEmpty())
+    assertEquals("0x000000FF", objHex.substringAfter('@'))
   }
 
   @Test
@@ -61,20 +66,20 @@ class BaseExtensionsUnitTest {
     tmp.cast<Int> {
       cnt = 2
     }
-    Assert.assertEquals(2, cnt)
+    assertEquals(2, cnt)
 
     tmp.cast<Double, Unit>({ cnt = 3 }) {
       cnt = 4
     }
-    Assert.assertNotEquals(4, cnt)
+    assertFalse(4 == cnt)
 
     tmp.cast<Number> {
       cnt = 5
     }
-    Assert.assertEquals(5, cnt)
+    assertEquals(5, cnt)
 
     val result = tmp.cast<Int, Int>({ 22 }) { 33 }
-    Assert.assertEquals(33, result)
+    assertEquals(33, result)
   }
 
   @Test
@@ -84,19 +89,19 @@ class BaseExtensionsUnitTest {
     tmp.cast<Int> {
       cnt = 2
     }
-    Assert.assertEquals(0, cnt)
+    assertEquals(0, cnt)
 
     tmp.cast<Double, Unit>({ cnt = 3 }) {
       cnt = 4
     }
-    Assert.assertNotEquals(4, cnt)
+    assertFalse(4 == cnt)
 
     tmp.cast<Number> {
       cnt = 5
     }
-    Assert.assertNotEquals(5, cnt)
+    assertFalse(5 == cnt)
 
     val result = tmp.cast<Int, Int>({ 22 }) { 33 }
-    Assert.assertEquals(22, result)
+    assertEquals(22, result)
   }
 }

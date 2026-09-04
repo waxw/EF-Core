@@ -1,6 +1,6 @@
-# core（JVM）— 基础扩展与 TaskRunner
+# core（KMP）— 基础扩展与 TaskRunner
 
-纯 JVM 模块 `io.github.waxw:core`，不依赖任何 Android 框架，可在 JVM 环境直接使用。
+Kotlin Multiplatform 模块 `io.github.waxw:core`，不依赖 Android 框架，可在 Android、Desktop JVM 与 iOS 共享使用。
 
 ## BaseExtensions（`com.miyako.core`）
 
@@ -20,6 +20,8 @@
 支持 `completeWhen` / `abortOn` / `retryOn` 条件、`beforeRetry` 回调、
 各阶段 `onAttemptSuccess` / `onAttemptFailure` / `onFinished` / `onObserverError` 观察者，
 以及 attempt / 总超时与取消语义，返回类型化 `ExecutionResult<T>`（Success / Failure / Exhausted / Timeout）。
+
+需要在其他语言中重建等价框架时，参见 [TaskRunner 设计与跨语言移植规范](task-runner-porting-spec.md)。该规范描述语言无关的状态机、不变量、取消与超时语义以及一致性测试。
 
 ```kotlin
 import com.miyako.core.task.TaskRunner
@@ -43,5 +45,5 @@ val polled = TaskRunner
 
 ## MVI 契约（`com.miyako.mvi`）
 
-`UiState` / `UiEffect` / `UiAction` 三个 marker 接口，配合 core-ui 的
+`UiState` / `UiEffect` / `UiAction` 三个 marker 接口，配合 core-android 的
 `MviViewModel` 与 core-ksp 的代码生成使用，见 [mvi-ksp.md](mvi-ksp.md)。

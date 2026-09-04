@@ -57,7 +57,7 @@ android {
 dependencies {
 
   implementation(project(":core"))
-  implementation(project(":core-ui"))
+  implementation(project(":core-android"))
   implementation(project(":core-compose"))
   implementation(project(":core-ksp"))
   ksp(project(":core-ksp"))

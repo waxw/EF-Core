@@ -147,7 +147,7 @@ class MainActivity : AppCompatActivity() {
 
     binding.scaffold.reInflate()
 
-    // ComposeBubble 演示：内容为 @Composable，堆叠/动画/手势逻辑复用 core-ui 的 BubbleManager
+    // ComposeBubble 演示：内容为 @Composable，堆叠/动画/手势逻辑复用 core-android 的 BubbleManager
     val systemBarsInsets =
       ViewCompat.getRootWindowInsets(window.decorView)?.getInsets(WindowInsetsCompat.Type.systemBars())
     val statusBarHeight = systemBarsInsets?.top ?: 0
@@ -162,7 +162,7 @@ class MainActivity : AppCompatActivity() {
         content = {
           BubbleCard(
             title = "Compose 气泡 TOP",
-            subtitle = "core-compose · 复用 core-ui BubbleManager",
+            subtitle = "core-compose · 复用 core-android BubbleManager",
             container = Color(0xFF3F51B5)
           )
         }

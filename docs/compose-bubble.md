@@ -2,7 +2,7 @@
 
 应用内气泡的 Jetpack Compose 适配层。**只做 Compose 适配，不重复实现气泡逻辑**：
 `@Composable` 内容经 `ComposeView` 承载后，堆叠/动画/手势/生命周期全部复用
-core-ui 的 [BubbleManager](bubble.md)。
+core-android 的 [BubbleManager](bubble.md)。
 
 ## 依赖
 
@@ -50,14 +50,14 @@ dismissAllBubbles()
 |------|---------|---------------|
 | 内容 | `(ViewGroup) -> View` | `@Composable () -> Unit` |
 | 接收者 | `Activity` | `ComponentActivity` |
-| 逻辑 | core-ui 实现 | **复用 core-ui 实现**，仅包 `ComposeView` |
+| 逻辑 | core-android 实现 | **复用 core-android 实现**，仅包 `ComposeView` |
 
 其余行为（位置/堆叠/滑动关闭/点击/自动消失/SystemUI 约定）与 View 版完全一致。
 
 ## 手动控制
 
 ```kotlin
-val manager = bubbleManager()       // core-ui BubbleManager，同一 Activity 共享
+val manager = bubbleManager()       // core-android BubbleManager，同一 Activity 共享
 manager.activeCount
 manager.dismissAll()
 ```

@@ -1,6 +1,8 @@
 package com.miyako.core.task
 
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.atomicfu.atomic
+import kotlinx.atomicfu.locks.SynchronizedObject
+import kotlinx.atomicfu.locks.synchronized
 
 /**
  * One-shot structured-concurrency task runner.
@@ -42,8 +44,8 @@ class TaskRunner<T> private constructor(
   }
 
   private val config = ExecutionConfig(initialDelayMs, intervalMs, maxAttempts, timeoutMs)
-  private val executed = AtomicBoolean(false)
-  private val configurationLock = Any()
+  private val executed = atomic(false)
+  private val configurationLock = SynchronizedObject()
   private val completionConditions = mutableListOf<CompletionCondition<*>>()
   private val abortConditions = mutableListOf<AbortCondition<out Throwable>>()
   private val retryConditions = mutableListOf<RetryCondition<out Throwable>>()
@@ -62,7 +64,7 @@ class TaskRunner<T> private constructor(
   private fun configure(block: () -> Unit): TaskRunner<T> =
     apply {
       synchronized(configurationLock) {
-        check(!executed.get()) { "Cannot modify after execution starts" }
+        check(!executed.value) { "Cannot modify after execution starts" }
         block()
       }
     }

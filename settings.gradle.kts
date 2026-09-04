@@ -22,6 +22,6 @@ dependencyResolutionManagement {
 rootProject.name = "EF-Core"
 include(":app")
 include(":core")
-include(":core-ui")
+include(":core-android")
 include(":core-compose")
 include(":core-ksp")

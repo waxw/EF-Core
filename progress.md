@@ -140,3 +140,38 @@
   - 开发模式版本 `0.0.5-<sha7>-<yyyyMMddHHmmss>` ✅；正式发布 `-Prelease=true` → `0.0.5` ✅。
   - 签名（signAllPublications）在 mavenLocal 发布链路正常（.asc 产物生成）。
   - 沙箱升级说明：Gradle 写 `~/.gradle`/`~/.m2` 需 danger-full-access，本次测试发布在用户授权下完成。
+
+## Session: 2026-09-03
+
+### Phase 8: core KMP 与 core-android 模块迁移
+- **Status:** complete
+- Actions taken:
+  - 读取项目结构、Gradle 配置、平台 import、Kotlin 风格和架构参考。
+  - 确认 `:core` 的 JVM 专属 API 边界及 `:core-compose` 的 Android-only 属性。
+  - 确认保留用户已有的 README、base extensions 和 TaskRunner 移植规范改动。
+  - 确认 KMP 发布插件支持 `KotlinMultiplatform`，并识别默认 Android target 与 `core-android` UI 制品的坐标冲突。
+  - 决定将 KMP Android target 命名为 `androidCore`，公共根坐标仍保留 `io.github.waxw:core`。
+  - 将 `:core` 改为 KMP，配置 Android、Desktop JVM、iOS x64/arm64/simulatorArm64 targets。
+  - 将公共源码/测试迁入 `commonMain`/`commonTest`，用公共单调时钟与平台 runtime actual 替换 JVM API。
+  - 使用 `kotlinx.atomicfu` 保留 TaskRunner 的 one-shot 与配置冻结并发保证。
+  - 将 `core-ui/` 重命名为 `core-android/`，同步项目依赖、GAV 映射和文档。
+  - 静态检查通过：产品代码与文档无旧模块引用，common source set 无 Android/JVM import，`git diff --check` 通过。
+  - 尚未运行 Gradle；按项目规则需先向用户说明影响并获得确认。
+  - 用户已确认执行三平台编译和单元测试。
+  - `:core:tasks --all` 配置成功，确认 Android、Desktop、iOS 编译与测试任务均已生成。
+  - 首次组合验证在 `compileKotlinDesktop` 发现 `AtomicBoolean.get()` 不属于 AtomicFU 公共 API；iOS worker 在已失败状态下长时间未退出，因此终止该次构建。
+  - 已将读取改为 `executed.value`；后续按平台分组重新验证。
+  - `./gradlew :core:desktopTest` 通过，Desktop 公共源码与 commonTest 编译、执行成功。
+  - Android 组验证通过：`:core:testDebugUnitTest`、`:core-android:testDebugUnitTest`、`:core-compose:testDebugUnitTest`、`:app:testDebugUnitTest`，86 个 Gradle task 成功。
+  - Android manifest 合并报告 `:core` 与 `:app` namespace 同为 `com.miyako.core`；将 `:core` Android namespace 改为 `com.miyako.core.shared`，不影响源码包名。
+  - iOS 首次构建完成 Kotlin/Native LLVM/sysroot 下载，随后在 `NSDate.timeIntervalSince1970` 属性解析失败。
+  - 检查 Kotlin/Native 2.0 Foundation metadata，确认存在 `NSDate.timeIntervalSince1970()`，已改用方法形式。
+  - 第二次 iOS 编译仍未解析同名方法；确认它是 Foundation category 的包级扩展，补充显式 import。
+  - 第三次 iOS 构建已完成源码/测试编译和链接；43 个测试仅 `test_hex` 因硬编码 JVM 类名失败。
+  - iOS 实际类名为 `Int`、JVM 为 `Integer`；公共测试改为验证平台无关的 identity 字符串结构与哈希格式。
+  - `:core:iosSimulatorArm64Test` 最终通过：43 tests，0 skipped/failure/error。
+  - `:core:compileKotlinIosArm64` 与 `:core:compileKotlinIosX64` 通过，三个已配置 iOS targets 均完成编译验证。
+  - 最终 Desktop + Android 回归通过：`:core:desktopTest`、`:core:testDebugUnitTest`、`:core-android:testDebugUnitTest`、`:core-compose:testDebugUnitTest`、`:app:testDebugUnitTest`。
+  - 测试报告合计 131 tests：core 每个平台 43，core-android 1，app 1；全部 0 skipped/failure/error，core-compose 无测试源码。
+  - 将 KMP 生成的根目录 `.kotlin/` 加入 `.gitignore`。
+  - Kotlin 2.0 对本机 Xcode 26.6 输出兼容性范围警告，但 iOS 编译、链接和测试均成功；未添加 suppress 配置。

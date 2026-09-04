@@ -1,5 +1,6 @@
 package com.miyako.core.task
 
+import com.miyako.core.platform.currentTimeMillis
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -8,24 +9,23 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.time.TimeSource
 
 internal class TaskExecution<T>(
   private val spec: TaskExecutionSpec<T>
 ) {
-  private val nanoMillis: Long get() = System.nanoTime() / 1_000_000
-
   private class ExecutionState(
     val startTime: Long,
-    val startNano: Long,
+    val startMark: TimeSource.Monotonic.ValueTimeMark,
     var executionCount: Int = 0,
     var phase: ExecutionPhase = ExecutionPhase.INITIAL_DELAY,
-    var attemptStartNano: Long? = null,
-    var attemptEndNano: Long? = null,
+    var attemptStartMark: TimeSource.Monotonic.ValueTimeMark? = null,
+    var attemptEndMark: TimeSource.Monotonic.ValueTimeMark? = null,
     var lastThrowable: Throwable? = null
   )
 
   suspend fun execute(): ExecutionResult<T> {
-    val state = ExecutionState(System.currentTimeMillis(), nanoMillis)
+    val state = ExecutionState(currentTimeMillis(), TimeSource.Monotonic.markNow())
     var primaryError: Throwable? = null
 
     try {
@@ -87,8 +87,8 @@ internal class TaskExecution<T>(
   }
 
   private suspend fun runRetryPreparation(state: ExecutionState): ExecutionResult.Failure? {
-    state.attemptStartNano = null
-    state.attemptEndNano = null
+    state.attemptStartMark = null
+    state.attemptEndMark = null
     if (spec.config.retryIntervalMs > 0) {
       state.phase = ExecutionPhase.RETRY_DELAY
       delay(spec.config.retryIntervalMs)
@@ -114,8 +114,8 @@ internal class TaskExecution<T>(
 
   private suspend fun runAttempt(state: ExecutionState): ExecutionResult<T>? {
     state.phase = ExecutionPhase.ATTEMPT
-    state.attemptStartNano = nanoMillis
-    state.attemptEndNano = null
+    state.attemptStartMark = TimeSource.Monotonic.markNow()
+    state.attemptEndMark = null
 
     val data =
       try {
@@ -128,7 +128,7 @@ internal class TaskExecution<T>(
         return handleAttemptFailure(state, throwable)
       }
 
-    state.attemptEndNano = nanoMillis
+    state.attemptEndMark = TimeSource.Monotonic.markNow()
     state.lastThrowable = null
     val attempt = ExecutionAttempt(state.metrics(), data)
     notifyAttemptSuccess(attempt)
@@ -158,7 +158,7 @@ internal class TaskExecution<T>(
     state: ExecutionState,
     throwable: Throwable
   ): ExecutionResult.Failure? {
-    state.attemptEndNano = nanoMillis
+    state.attemptEndMark = TimeSource.Monotonic.markNow()
     state.lastThrowable = throwable
     val attempt = ExecutionAttempt(state.metrics(), throwable)
     notifyAttemptFailure(attempt)
@@ -268,14 +268,16 @@ internal class TaskExecution<T>(
     }
   }
 
-  private fun ExecutionState.metrics(now: Long = nanoMillis): ExecutionMetrics {
-    val attemptStart = attemptStartNano
-    val attemptEnd = attemptEndNano ?: now
+  private fun ExecutionState.metrics(
+    now: TimeSource.Monotonic.ValueTimeMark = TimeSource.Monotonic.markNow()
+  ): ExecutionMetrics {
+    val attemptStart = attemptStartMark
+    val attemptEnd = attemptEndMark ?: now
     return ExecutionMetrics(
       executionCount = executionCount,
-      attemptStartTime = attemptStart?.let { startTime + (it - startNano) },
-      attemptDuration = attemptStart?.let { attemptEnd - it },
-      totalDuration = now - startNano,
+      attemptStartTime = attemptStart?.let { startTime + (it - startMark).inWholeMilliseconds },
+      attemptDuration = attemptStart?.let { (attemptEnd - it).inWholeMilliseconds },
+      totalDuration = (now - startMark).inWholeMilliseconds,
       phase = phase,
     )
   }

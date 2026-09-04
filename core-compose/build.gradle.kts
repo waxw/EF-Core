@@ -57,9 +57,9 @@ android {
 }
 
 dependencies {
-  // 复用 core-ui 的 bubble 逻辑（BubbleManager/BubbleView/BubbleSpec），
+  // 复用 core-android 的 bubble 逻辑（BubbleManager/BubbleView/BubbleSpec），
   // 作为公开 API 暴露给 Compose 调用方
-  api(project(":core-ui"))
+  api(project(":core-android"))
 
   implementation(platform(libs.compose.bom))
   implementation(libs.compose.runtime)

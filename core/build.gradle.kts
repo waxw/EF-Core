@@ -1,9 +1,12 @@
+@file:OptIn(org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi::class)
+
 import com.vanniktech.maven.publish.JavadocJar
-import com.vanniktech.maven.publish.KotlinJvm
+import com.vanniktech.maven.publish.KotlinMultiplatform
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-  id("java-library")
-  alias(libs.plugins.jetbrainsKotlinJvm)
+  alias(libs.plugins.jetbrainsKotlinMultiplatform)
+  alias(libs.plugins.androidLibrary)
   alias(libs.plugins.vanniktechMavenPublish)
 }
 
@@ -18,23 +21,55 @@ val gavBaseVersion: String by extra
  */
 val gavVersion: String by extra
 
-java {
-  sourceCompatibility = JavaVersion.VERSION_17
-  targetCompatibility = JavaVersion.VERSION_17
+kotlin {
+  androidTarget("androidCore") {
+    compilerOptions {
+      jvmTarget.set(JvmTarget.JVM_17)
+    }
+  }
+
+  jvm("desktop") {
+    compilerOptions {
+      jvmTarget.set(JvmTarget.JVM_17)
+    }
+  }
+
+  iosX64()
+  iosArm64()
+  iosSimulatorArm64()
+
+  sourceSets {
+    commonMain.dependencies {
+      implementation(libs.kotlinx.coroutines.core)
+      implementation(libs.kotlinx.atomicfu)
+    }
+    commonTest.dependencies {
+      implementation(kotlin("test"))
+      implementation(libs.kotlinx.coroutines.test)
+    }
+  }
 }
 
-dependencies {
-  implementation(libs.kotlinx.coroutines.core)
-  testImplementation(libs.junit)
-  // Coroutines 测试库
-  testImplementation(libs.kotlinx.coroutines.test)
+android {
+  namespace = "com.miyako.core.shared"
+  compileSdk = 34
+
+  defaultConfig {
+    minSdk = 24
+  }
+
+  compileOptions {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+  }
 }
 
 mavenPublishing {
   configure(
-    KotlinJvm(
+    KotlinMultiplatform(
       javadocJar = JavadocJar.Empty(),
       sourcesJar = true,
+      androidVariantsToPublish = listOf("release"),
     ),
   )
 
@@ -54,7 +89,7 @@ mavenPublishing {
 }
 
 fun MavenPom.configurePomMetadata() {
-  description.set("Kotlin/JVM core utilities for EF-Core.")
+  description.set("Kotlin Multiplatform core utilities for EF-Core.")
   inceptionYear.set("2024")
   url.set("https://github.com/waxw/EF-Core")
 

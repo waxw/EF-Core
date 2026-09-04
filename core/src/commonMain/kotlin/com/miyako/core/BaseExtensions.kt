@@ -1,6 +1,6 @@
 package com.miyako.core
 
-import java.util.Locale
+import com.miyako.core.platform.platformClassSimpleName
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -62,4 +62,4 @@ inline fun <reified T, R> Any?.cast(
 fun <T> unsafeLazy(initializer: () -> T): Lazy<T> = lazy(LazyThreadSafetyMode.NONE, initializer)
 
 val Any.hex: String
-  get() = "${javaClass.simpleName}@0x${this.hashCode().toString(16).uppercase(Locale.ENGLISH).padStart(8, '0')}"
+  get() = "${platformClassSimpleName(this)}@0x${hashCode().toUInt().toString(16).uppercase().padStart(8, '0')}"

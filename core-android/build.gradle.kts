@@ -82,13 +82,13 @@ mavenPublishing {
   )
 
   pom {
-    name.set("EF-Core UI")
+    name.set("EF-Core Android")
     configurePomMetadata()
   }
 }
 
 fun MavenPom.configurePomMetadata() {
-  description.set("Android UI utilities for EF-Core (views, viewbinding, rv, mvi).")
+  description.set("Android utilities for EF-Core (views, viewbinding, rv, mvi).")
   inceptionYear.set("2024")
   url.set("https://github.com/waxw/EF-Core")
 

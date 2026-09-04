@@ -5,12 +5,12 @@ import androidx.compose.ui.platform.ComposeView
 import com.miyako.core.bubble.BubbleSpec
 
 /**
- * Compose 版气泡配置：字段与 core-ui 的 [BubbleSpec] 完全一致，
+ * Compose 版气泡配置：字段与 core-android 的 [BubbleSpec] 完全一致，
  * 仅 [content] 由 View 内容改为 Compose composable。
  *
- * [showBubble] 会通过 [toBubbleSpec] 把它转成 core-ui 的 [BubbleSpec]，
+ * [showBubble] 会通过 [toBubbleSpec] 把它转成 core-android 的 [BubbleSpec]，
  * 用 [ComposeView] 承载 composable 内容，堆叠/动画/手势/生命周期等
- * 逻辑完全复用 core-ui 的 [com.miyako.core.bubble.BubbleManager]，
+ * 逻辑完全复用 core-android 的 [com.miyako.core.bubble.BubbleManager]，
  * 本模块**不重复实现任何气泡逻辑**。
  */
 class ComposeBubbleSpec {
@@ -46,7 +46,7 @@ class ComposeBubbleSpec {
    */
   var content: (@Composable () -> Unit)? = null
 
-  /** 转换为 core-ui 的 [BubbleSpec]，内容用 [ComposeView] 承载 */
+  /** 转换为 core-android 的 [BubbleSpec]，内容用 [ComposeView] 承载 */
   internal fun toBubbleSpec(): BubbleSpec = BubbleSpec().apply {
     // apply 的隐式接收者是 BubbleSpec，外层 ComposeBubbleSpec 属性需显式限定
     position = this@ComposeBubbleSpec.position

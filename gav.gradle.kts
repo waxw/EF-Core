@@ -26,7 +26,7 @@ import java.util.Locale
 /** 各发布模块的 artifactId（按项目名） */
 val gavArtifactIds = mapOf(
   "core" to "core",
-  "core-ui" to "core-ui",
+  "core-android" to "core-android",
   "core-compose" to "core-compose",
   "core-ksp" to "core-ksp",
 )

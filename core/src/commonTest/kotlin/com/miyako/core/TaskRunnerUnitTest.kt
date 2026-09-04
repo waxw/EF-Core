@@ -9,13 +9,13 @@ import com.miyako.core.task.TaskTimeoutException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
-import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
-import org.junit.Test
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNull
+import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class TaskRunnerUnitTest {
   @Test
@@ -97,7 +97,7 @@ class TaskRunnerUnitTest {
       assertTrue(result is ExecutionResult.Failure)
       result as ExecutionResult.Failure
       assertSame(ruleFailure, result.throwable)
-      assertSame(attemptFailure, result.throwable.suppressed.single())
+      assertSame(attemptFailure, result.throwable.suppressedExceptions.single())
     }
 
   @Test
@@ -115,7 +115,7 @@ class TaskRunnerUnitTest {
       assertTrue(result is ExecutionResult.Failure)
       result as ExecutionResult.Failure
       assertSame(attemptFailure, result.throwable)
-      assertTrue(result.throwable.suppressed.isEmpty())
+      assertTrue(result.throwable.suppressedExceptions.isEmpty())
     }
 
   @Test
@@ -233,7 +233,7 @@ class TaskRunnerUnitTest {
       assertTrue(result is ExecutionResult.Failure)
       result as ExecutionResult.Failure
       assertSame(ruleFailure, result.throwable)
-      assertSame(attemptFailure, result.throwable.suppressed.single())
+      assertSame(attemptFailure, result.throwable.suppressedExceptions.single())
     }
 
   @Test
@@ -251,7 +251,7 @@ class TaskRunnerUnitTest {
       assertTrue(result is ExecutionResult.Failure)
       result as ExecutionResult.Failure
       assertSame(attemptFailure, result.throwable)
-      assertTrue(result.throwable.suppressed.isEmpty())
+      assertTrue(result.throwable.suppressedExceptions.isEmpty())
     }
 
   @Test

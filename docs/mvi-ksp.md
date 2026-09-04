@@ -1,14 +1,14 @@
 # MVI 契约与 KSP 代码生成
 
-EF-Core 提供一套轻量 MVI 模型：纯 JVM 契约（`:core`）、Android ViewModel 基类（`:core-ui`）
+EF-Core 提供一套轻量 MVI 模型：KMP 契约（`:core`）、Android ViewModel 基类（`:core-android`）
 与 KSP 注解处理器（`:core-ksp`）三层，KSP 负责生成 Action 分发委托代码。
 
 ## 模块分工
 
 | 模块 | 内容 |
 |------|------|
-| `:core`（JVM） | 契约接口：`com.miyako.mvi.UiState / UiEffect / UiAction` |
-| `:core-ui`（Android） | `com.miyako.mvi.MviViewModel<S, E, A>`（`uiState` / `uiEffect` StateFlow） |
+| `:core`（KMP） | 契约接口：`com.miyako.mvi.UiState / UiEffect / UiAction` |
+| `:core-android`（Android） | `com.miyako.mvi.MviViewModel<S, E, A>`（`uiState` / `uiEffect` StateFlow） |
 | `:core-ksp`（代码生成） | 注解 `@DispatchAction` / `@DelegateDispatch` / `@Action`、`Dispatcher`、`defReturn` |
 
 ## 接入
@@ -16,7 +16,7 @@ EF-Core 提供一套轻量 MVI 模型：纯 JVM 契约（`:core`）、Android Vi
 ```kotlin
 // 模块 build.gradle.kts（应用了 ksp 插件时）
 implementation(project(":core"))          // 或 io.github.waxw:core
-implementation(project(":core-ui"))       // 或 io.github.waxw:core-ui
+implementation(project(":core-android"))  // 或 io.github.waxw:core-android
 ksp(project(":core-ksp"))                 // 或 io.github.waxw:core-ksp
 ```
 
