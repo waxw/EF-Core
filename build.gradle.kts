@@ -8,6 +8,7 @@ plugins {
   alias(libs.plugins.jetbrainsKotlinAndroid) apply false
   alias(libs.plugins.androidLibrary) apply false
   alias(libs.plugins.jetbrainsKotlinJvm) apply false
+  alias(libs.plugins.jetbrainsKotlinCompose) apply false
   alias(libs.plugins.vanniktechMavenPublish) apply false
 }
 
@@ -20,6 +21,9 @@ buildscript {
 allprojects {
   apply(plugin = "org.jmailen.kotlinter")
 }
+
+// gav 版本策略（extra: gavBaseVersion / resolveGavVersion），供 core / ksp 复用
+apply(from = "gav.gradle.kts")
 
 tasks.register<FormatTask>("ktFormat") {
   val files = project.properties["formatFile"] as? String

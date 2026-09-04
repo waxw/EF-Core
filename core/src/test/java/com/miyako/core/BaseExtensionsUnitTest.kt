@@ -4,34 +4,17 @@ import org.junit.Assert
 import org.junit.Test
 
 class BaseExtensionsUnitTest {
-
-  @Test
-  fun test_debug() {
-    val target: String? = null
-    var cnt = 0
-    target.debug {
-      cnt++
-    }
-
-    Assert.assertTrue(cnt == 1)
-
-    val target1: String = "123"
-    cnt = 0
-    target1.debug {
-      cnt++
-    }
-    Assert.assertTrue(cnt == 1)
-  }
-
   @Test
   fun test_orInit() {
     val obj: MutableList<Int>? = null
-    val result = obj.orInit {
-      mutableListOf(1, 2, 3)
-    }
-    val result1 = result.orInit {
-      emptyList()
-    }
+    val result =
+      obj.orInit {
+        mutableListOf(1, 2, 3)
+      }
+    val result1 =
+      result.orInit {
+        emptyList()
+      }
     Assert.assertNull(obj)
     Assert.assertNotNull(result)
     Assert.assertNotSame(result1, emptyList<Int>())

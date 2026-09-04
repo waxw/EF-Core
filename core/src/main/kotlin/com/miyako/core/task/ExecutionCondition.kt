@@ -2,30 +2,38 @@ package com.miyako.core.task
 
 import kotlin.reflect.KClass
 
-interface ExecutionCondition {
-  suspend fun matches(data: Any, result: ExecutionResult<*>): Boolean
-}
-
-class StopWhenCondition<T : Any>(
+@PublishedApi
+internal class CompletionCondition<T : Any>(
   private val type: KClass<T>,
-  val execution: suspend (ExecutionResult<T>) -> Boolean
-) : ExecutionCondition {
+  private val predicate: suspend (ExecutionAttempt<T>) -> Boolean
+) {
   @Suppress("UNCHECKED_CAST")
-  override suspend fun matches(data: Any, result: ExecutionResult<*>): Boolean {
-    return if (type.isInstance(data)) {
-      execution(result as ExecutionResult<T>)
-    } else false
+  suspend fun matches(
+    data: Any?,
+    attempt: ExecutionAttempt<*>
+  ): Boolean {
+    return type.isInstance(data) && predicate(attempt as ExecutionAttempt<T>)
   }
 }
 
-class FailWhenCondition<T : Throwable>(
+@PublishedApi
+internal class AbortCondition<T : Throwable>(
   private val type: KClass<T>,
-  val execution: suspend (ExecutionResult<T>) -> Boolean
-) : ExecutionCondition {
+  private val predicate: (T) -> Boolean
+) {
+  fun accepts(throwable: Throwable): Boolean = type.isInstance(throwable)
+
   @Suppress("UNCHECKED_CAST")
-  override suspend fun matches(data: Any, result: ExecutionResult<*>): Boolean {
-    return if (type.isInstance(data)) {
-      execution(result as ExecutionResult<T>)
-    } else false
-  }
+  fun matches(throwable: Throwable): Boolean = predicate(throwable as T)
+}
+
+@PublishedApi
+internal class RetryCondition<T : Throwable>(
+  private val type: KClass<T>,
+  private val predicate: (T) -> Boolean
+) {
+  fun accepts(throwable: Throwable): Boolean = type.isInstance(throwable)
+
+  @Suppress("UNCHECKED_CAST")
+  fun matches(throwable: Throwable): Boolean = predicate(throwable as T)
 }

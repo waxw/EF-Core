@@ -1,79 +1,40 @@
-import com.vanniktech.maven.publish.AndroidSingleVariantLibrary
-import org.gradle.api.publish.maven.MavenPublication
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.KotlinJvm
 
 plugins {
-  alias(libs.plugins.androidLibrary)
-  alias(libs.plugins.jetbrainsKotlinAndroid)
-  alias(libs.plugins.ksp)
+  id("java-library")
+  alias(libs.plugins.jetbrainsKotlinJvm)
   alias(libs.plugins.vanniktechMavenPublish)
 }
 
-val gavGroupId = "io.github.waxw"
-val gavArtifactId = "core"
-val gavVersion = "0.0.5-SNAPSHOT"
+// gav 坐标与版本策略统一见根目录 gav.gradle.kts（subprojects 注入，类型化读取）
+val gavGroupId: String by extra
+val gavArtifactId: String by extra
+val gavBaseVersion: String by extra
 
-android {
-  namespace = "com.miyako.core"
-  compileSdk = 34
+/**
+ * 版本策略见 gav.gradle.kts：
+ * 开发阶段 `0.0.5-<commit 短哈希>-<时间戳>`；正式发布使用纯版本号 `0.0.5`。
+ */
+val gavVersion: String by extra
 
-  defaultConfig {
-    minSdk = 24
-
-    testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    consumerProguardFiles("consumer-rules.pro")
-  }
-
-  buildFeatures {
-    viewBinding = true
-  }
-
-  buildTypes {
-    release {
-      isMinifyEnabled = false
-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-    }
-  }
-  lint {
-    abortOnError = false
-  }
-  compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
-  kotlinOptions {
-    jvmTarget = "1.8"
-  }
-
-  publishing {
-    singleVariant("debug") {
-      withSourcesJar()
-      withJavadocJar()
-    }
-  }
-
+java {
+  sourceCompatibility = JavaVersion.VERSION_17
+  targetCompatibility = JavaVersion.VERSION_17
 }
 
 dependencies {
-
-  ksp(project(":ksp"))
-
-  implementation(libs.androidx.core.ktx)
-  implementation(libs.androidx.appcompat)
-  implementation(libs.androidx.recyclerview)
-  implementation(libs.material)
+  implementation(libs.kotlinx.coroutines.core)
   testImplementation(libs.junit)
-  androidTestImplementation(libs.androidx.junit)
-  androidTestImplementation(libs.androidx.espresso.core)
   // Coroutines 测试库
   testImplementation(libs.kotlinx.coroutines.test)
 }
 
 mavenPublishing {
   configure(
-    AndroidSingleVariantLibrary(
-      variant = "release",
+    KotlinJvm(
+      javadocJar = JavadocJar.Empty(),
       sourcesJar = true,
-      publishJavadocJar = true,
     ),
   )
 
@@ -92,25 +53,8 @@ mavenPublishing {
   }
 }
 
-afterEvaluate {
-  publishing {
-    publications {
-      register<MavenPublication>("debug") {
-        from(components["debug"])
-        groupId = gavGroupId
-        artifactId = "$gavArtifactId-debug"
-        version = gavVersion
-
-        pom {
-          name.set("EF-Core Debug")
-        }
-      }
-    }
-  }
-}
-
 fun MavenPom.configurePomMetadata() {
-  description.set("Android Kotlin core utilities for projects.")
+  description.set("Kotlin/JVM core utilities for EF-Core.")
   inceptionYear.set("2024")
   url.set("https://github.com/waxw/EF-Core")
 
